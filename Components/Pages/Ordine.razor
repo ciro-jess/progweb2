@@ -1,0 +1,202 @@
+@page "/admin/ordini"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using OnlineShop.Data.Entities
+@using OrdineEntity = OnlineShop.Data.Entities.Ordine
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+
+<PageTitle>Ordini | Ottava Meraviglia</PageTitle>
+
+<div class="ordini-page">
+    <header class="ordini-hero mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <p class="text-muted">Gestione ordini</p>
+                <h1>CRUD Ordini</h1>
+            </div>
+            <button class="btn btn-success" @onclick="CreaNuovoOrdine">Nuovo ordine</button>
+            
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Caricamento in corso...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else
+    {
+        <RadzenDataGrid Data="@ordini"
+                        TItem="OrdineEntity"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="10"
+                        EmptyText="Nessun ordine trovato">
+            <Columns>
+                <RadzenDataGridColumn TItem="OrdineEntity" Property="Id" Title="ID" />
+                <RadzenDataGridColumn TItem="OrdineEntity" Title="Utente">
+                    <Template Context="ordine">
+                        @(ordine.Utente?.NomeCompleto ?? "Utente sconosciuto")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrdineEntity" Property="Totale" Title="Totale">
+                    <Template Context="ordine">
+                        @ordine.Totale.ToString("C")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrdineEntity" Property="Stato" Title="Stato">
+                    <Template Context="ordine">
+                        @if (ordine.Stato == "In Sospeso")
+                        {
+                            <span class="badge bg-warning text-dark">In sospeso</span>
+                        }
+                        else if (ordine.Stato == "Pagato")
+                        {
+                            <span class="badge bg-success">Pagato</span>
+                        }
+                        else if (ordine.Stato == "Annullato")
+                        {
+                            <span class="badge bg-danger">Annullato</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">@ordine.Stato</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrdineEntity" Property="DataOrdine" Title="Data ordine">
+                    <Template Context="ordine">
+                        @ordine.DataOrdine.ToString("dd/MM/yyyy HH:mm")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrdineEntity" Title="Dettaglio" Sortable="false" Filterable="false" Width="140px">
+                    <Template Context="ordine">
+                        <button class="btn btn-sm btn-primary" @onclick="() => VisualizzaDettagli(ordine.Id)">
+                            Dettagli
+                        </button>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    }
+</div>
+
+@code {
+    private List<global::OnlineShop.Data.Entities.Ordine> ordini = new();
+    private global::OnlineShop.Data.Entities.Ordine editingOrder = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    
+    
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private async Task<Utente?> GetCurrentAuthenticatedUtenteAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var email = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        email = email.Trim().ToLowerInvariant();
+        var utente = await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+        if (utente is not null)
+        {
+            return utente;
+        }
+
+        var nome = email.Split('@')[0];
+        utente = new Utente
+        {
+            Nome = nome,
+            Cognome = string.Empty,
+            Email = email,
+            PasswordHash = string.Empty,
+            Ruolo = "Cliente",
+            DataRegistrazione = DateTime.Now
+        };
+
+        Db.Utenti.Add(utente);
+        await Db.SaveChangesAsync();
+
+        return utente;
+    }
+
+    private async Task CreaNuovoOrdine()
+    {
+        try
+        {
+            errorMessage = null;
+            
+            var utente = await GetCurrentAuthenticatedUtenteAsync();
+
+            if (utente is null)
+            {
+                errorMessage = "Utente autenticato non trovato. Assicurati che l'utente esista nel sistema.";
+                return;
+            }
+
+            var nuovoCarrello = new Carrello
+            {
+                UtenteId = utente.Id,
+                DataCreazione = DateTime.Now
+            };
+
+            Db.Carrelli.Add(nuovoCarrello);
+            await Db.SaveChangesAsync();
+
+            Navigation.NavigateTo($"/carrello/{nuovoCarrello.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage ="Errore durante la creazione del nuovo ordine";
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            ordini = await Db.Ordini
+                .Include(o => o.Utente)
+                .AsNoTracking()
+                .OrderByDescending(o => o.DataOrdine)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il caricamento degli ordini.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+
+    private void VisualizzaDettagli(int ordineId)
+    {
+        Navigation.NavigateTo($"/ordine/{ordineId}");
+    }
+}

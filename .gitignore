@@ -1,0 +1,20 @@
+## .NET build output
+bin/
+obj/
+
+## Visual Studio / VS Code
+.vs/
+.vscode/
+
+## Local database
+*.db
+*.db-shm
+*.db-wal
+
+## User-specific files
+*.user
+*.suo
+
+## OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,54 @@
+.dettaglio-prodotto-page {
+    padding: 1.5rem 0 2.5rem;
+}
+
+.dettaglio-prodotto-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 1.2rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.dettaglio-prodotto-header {
+    padding: 2rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dettaglio-prodotto-header h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 2.5vw, 2.6rem);
+    font-weight: 800;
+    color: #111827;
+}
+
+.dettaglio-prodotto-body {
+    padding: 2rem;
+}
+
+.dettaglio-prodotto-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.dettaglio-prodotto-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.9rem;
+    padding: 1rem;
+}
+
+.dettaglio-prodotto-item strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #374151;
+}
+
+@media (max-width: 768px) {
+    .dettaglio-prodotto-header,
+    .dettaglio-prodotto-body {
+        padding: 1.25rem;
+    }
+}

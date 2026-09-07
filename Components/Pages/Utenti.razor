@@ -1,0 +1,172 @@
+@page "/Utente"
+@page "/Utenti"
+
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+
+<PageTitle>Utenti | Ottava Meraviglia</PageTitle>
+
+<div class="utenti-page">
+    <header class="utenti-hero">
+        <div>
+            <p class="utenti-eyebrow">Area amministrativa</p>
+
+            <h1>Gestione utenti</h1>
+
+            <p class="utenti-intro">
+                Visualizza gli utenti registrati e le relative informazioni.
+            </p>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="utenti-state utenti-state--loading">
+            Caricamento utenti in corso...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="utenti-state utenti-state--error">
+            @errorMessage
+        </div>
+    }
+    else if (utenti.Count == 0)
+    {
+        <div class="utenti-state">
+            Nessun utente trovato.
+        </div>
+    }
+    else
+    {
+        <div class="utenti-toolbar">
+            <p>
+                Utenti trovati:
+                <strong>@utenti.Count</strong>
+            </p>
+        </div>
+
+        <div class="utenti-grid">
+            @foreach (var utente in utenti)
+            {
+                <article class="utente-card" @key="utente.Id">
+                    <header class="utente-card__header">
+                        <div class="utente-card__avatar">
+                            @OttieniIniziali(utente)
+                        </div>
+
+                        <div>
+                            <h2>@MostraNomeCompleto(utente)</h2>
+
+                            <span class="utente-card__ruolo">
+                                @MostraValore(utente.Ruolo)
+                            </span>
+                        </div>
+                    </header>
+
+                    <div class="utente-card__body">
+                        <dl>
+                            <div>
+                                <dt>ID</dt>
+                                <dd>@utente.Id</dd>
+                            </div>
+
+                            <div>
+                                <dt>Email</dt>
+                                <dd>@MostraValore(utente.Email)</dd>
+                            </div>
+
+                            <div>
+                                <dt>Telefono</dt>
+                                <dd>@MostraValore(utente.Telefono)</dd>
+                            </div>
+
+                            <div>
+                                <dt>Registrazione</dt>
+                                <dd>
+                                    @utente.DataRegistrazione.ToString("dd/MM/yyyy HH:mm")
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                </article>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<Utente> utenti = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            utenti = await Db.Utenti
+                .AsNoTracking()
+                .OrderBy(u => u.Cognome)
+                .ThenBy(u => u.Nome)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Si è verificato un errore durante il caricamento degli utenti.";
+
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string MostraNomeCompleto(Utente utente)
+    {
+        string nomeCompleto =
+            $"{utente.Nome} {utente.Cognome}".Trim();
+
+        return string.IsNullOrWhiteSpace(nomeCompleto)
+            ? "Utente senza nome"
+            : nomeCompleto;
+    }
+
+    private static string OttieniIniziali(Utente utente)
+    {
+        string inizialeNome = string.IsNullOrWhiteSpace(utente.Nome)
+            ? string.Empty
+            : utente.Nome[..1];
+
+        string inizialeCognome = string.IsNullOrWhiteSpace(utente.Cognome)
+            ? string.Empty
+            : utente.Cognome[..1];
+
+        string iniziali =
+            $"{inizialeNome}{inizialeCognome}".ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(iniziali)
+            ? "U"
+            : iniziali;
+    }
+
+    private static string MostraValore(string? valore)
+    {
+        return string.IsNullOrWhiteSpace(valore)
+            ? "Non specificato"
+            : valore;
+    }
+}

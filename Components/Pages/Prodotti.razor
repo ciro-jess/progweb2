@@ -1,0 +1,266 @@
+@page "/prodotti"
+@attribute [Authorize(Roles = "Admin")]
+@using OnlineShop.Data.Entities
+@using OnlineShop.Components.Shared
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+
+<PageTitle>Prodotti | Ottava Meraviglia</PageTitle>
+
+<div class="prodotti-page">
+    <header class="prodotti-hero mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <p class="text-muted">Gestione prodotti</p>
+                <h1> Prodotti</h1>
+            </div>
+            <button class="btn btn-success" @onclick="CreateNewProduct">Nuovo prodotto</button>
+        </div>
+    </header>
+    
+
+   @if (showForm)
+   {
+    <ProdottoForm Product="editingProduct"
+                  OnValidSubmit="SaveProduct"
+                  OnCancel="ResetForm" />
+   }
+    
+
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Caricamento in corso...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else
+    {
+        <RadzenDataGrid Data="@prodotti"
+                        TItem="Prodotto"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="10"
+                        EmptyText="Nessun prodotto trovato">
+            <Columns>
+                <RadzenDataGridColumn TItem="Prodotto" Property="Nome" Title="Nome" />
+                <RadzenDataGridColumn TItem="Prodotto" Property="Categoria" Title="Categoria" />
+                <RadzenDataGridColumn TItem="Prodotto" Property="Prezzo" Title="Prezzo">
+                    <Template Context="prodotto">
+                        @prodotto.Prezzo.ToString("C")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Prodotto" Property="QuantitaMagazzino" Title="Quantità" />
+                <RadzenDataGridColumn TItem="Prodotto" Property="Disponibile" Title="Disponibile">
+                    <Template Context="prodotto">
+                        @(prodotto.Disponibile ? "Sì" : "No")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Prodotto" Property="Personalizzabile" Title=" Personalizzabile">
+                    <Template Context="prodotto">
+                        @if (prodotto.Personalizzabile){
+                            <span class="badge bg-success">Si </span>
+                        } 
+                        else 
+                        {
+                            <span class="badge bg-secondary"> No</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Prodotto" Title="Azioni" Sortable="false" Filterable="false" Width="220px">
+                    <Template Context="prodotto">
+                        <button class="btn btn-sm btn-primary me-2" @onclick="() => EditProduct(prodotto.Id)">Modifica</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteProduct(prodotto.Id)">Elimina</button>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    }
+</div>
+
+@code {
+    private List<Prodotto> prodotti = new();
+    private Prodotto editingProduct = new();
+    private bool isLoading = true;
+    private bool showForm = true; 
+    private string? errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            prodotti = await Db.Prodotti.AsNoTracking().OrderBy(p => p.Nome).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il caricamento dei prodotti.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateNewProduct()
+    {
+        editingProduct = new Prodotto
+        {
+            Disponibile = true,
+            DataInserimento = DateTime.Now
+        };
+
+        showForm =true ;
+        errorMessage = null;  
+    }
+
+    private async Task EditProduct(int id)
+    {
+        try
+        {
+            var prodotto = await Db.Prodotti
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (prodotto is null)
+            {
+                errorMessage = " prodotto non trovato ";
+                return;
+            }
+    
+
+        editingProduct = new Prodotto
+        {
+            Id = prodotto.Id,
+            Nome = prodotto.Nome,
+            Categoria = prodotto.Categoria,
+            Descrizione = prodotto.Descrizione,
+            Prezzo = prodotto.Prezzo,
+            QuantitaMagazzino = prodotto.QuantitaMagazzino,
+           
+            Personalizzabile = prodotto.Personalizzabile,
+            Disponibile = prodotto.Disponibile,
+            DataInserimento = prodotto.DataInserimento
+        };
+         showForm = true;
+         errorMessage = null;
+    }
+    catch (Exception ex)
+    { 
+        errorMessage = "errore durante  il caricamento del prodotto da modificare ";
+        Console.Error.Write(ex);
+
+    }
+}
+    
+
+    private async Task SaveProduct(Prodotto product)
+    {
+        try
+        {
+            if (product.Id == 0)
+            {
+                if (product.DataInserimento == default)
+                {
+                    product.DataInserimento =DateTime.Now; 
+                }
+                Db.Prodotti.Add(product);
+            
+            }
+            else
+            {
+                var existingProduct =await Db.Prodotti
+                    .FirstOrDefaultAsync(p =>p.Id == product.Id);
+
+                if( existingProduct is null)
+                {
+                    errorMessage = "prodotto non trovato";
+                    return;
+                }
+
+                
+                existingProduct.Nome = product.Nome;
+
+                existingProduct.Categoria = product.Categoria;
+
+                existingProduct.Descrizione = product.Descrizione;
+
+                existingProduct.Prezzo = product.Prezzo;
+
+                existingProduct.QuantitaMagazzino = product.QuantitaMagazzino;
+
+                
+
+                existingProduct.Personalizzabile = product.Personalizzabile;
+
+                existingProduct.Disponibile = product.Disponibile;
+
+
+           
+            }
+
+            await Db.SaveChangesAsync();
+            
+            ResetForm();
+            
+            await LoadProductsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il salvataggio del prodotto.";
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        try
+        {
+            errorMessage = null;
+
+           
+            var prodotto = await Db.Prodotti
+
+            .FirstOrDefaultAsync(p => p.Id == id);
+            if (prodotto is null)
+
+            {
+
+            errorMessage = "Prodotto non trovato.";
+
+            return;
+
+            } 
+
+                Db.Prodotti.Remove(prodotto);
+
+                await Db.SaveChangesAsync();
+              
+
+                await LoadProductsAsync();
+
+            }
+            catch (Exception ex)
+            {
+             errorMessage =" Errore durante l'eliminazione del prodotto";
+             Console.Error.Write(ex);
+            }
+        }
+
+    private void ResetForm()
+    {
+        editingProduct = new Prodotto();
+        showForm =false;
+    }
+}

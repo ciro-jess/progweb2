@@ -1,0 +1,390 @@
+@page "/componi-kebab/{ProdottoId:int}"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+@using CarrelloProdottoEntity = OnlineShop.Data.Entities.CarrelloProdotto
+
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+
+<PageTitle>Componi il tuo kebab</PageTitle>
+
+<h1>Componi il tuo kebab</h1>
+
+@if (isLoading)
+{
+    <div class="alert alert-info">
+        Caricamento delle opzioni...
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else
+{
+    <div class="card card-body">
+        <h2 class="h4">@model.NomeProdotto</h2>
+
+        <p>
+            Prezzo base:
+            <strong>@model.PrezzoBase.ToString("C")</strong>
+        </p>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Scegli il pane</label>
+
+            @foreach (var opzione in OpzioniPerCategoria("Pane"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="pane"
+                           checked="@(model.PaneSelezionatoId == opzione.Id)"
+                           @onchange="() => model.PaneSelezionatoId = opzione.Id" />
+
+                    <label class="form-check-label">
+                        @DescrizioneOpzione(opzione)
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Scegli la carne</label>
+
+            @foreach (var opzione in OpzioniPerCategoria("Carne"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="carne"
+                           checked="@(model.CarneSelezionataId == opzione.Id)"
+                           @onchange="() => model.CarneSelezionataId = opzione.Id" />
+
+                    <label class="form-check-label">
+                        @DescrizioneOpzione(opzione)
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Verdure</label>
+
+            @foreach (var opzione in OpzioniPerCategoria("Verdura"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           checked="@model.VerdureSelezionate.Contains(opzione.Id)"
+                           @onchange="e => CambiaSelezione(
+                               model.VerdureSelezionate,
+                               opzione.Id,
+                               (bool)e.Value!)" />
+
+                    <label class="form-check-label">
+                        @DescrizioneOpzione(opzione)
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Salse</label>
+
+            @foreach (var opzione in OpzioniPerCategoria("Salsa"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           checked="@model.SalseSelezionate.Contains(opzione.Id)"
+                           @onchange="e => CambiaSelezione(
+                               model.SalseSelezionate,
+                               opzione.Id,
+                               (bool)e.Value!)" />
+
+                    <label class="form-check-label">
+                        @DescrizioneOpzione(opzione)
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Extra</label>
+
+            @foreach (var opzione in OpzioniPerCategoria("Extra"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           checked="@model.ExtraSelezionati.Contains(opzione.Id)"
+                           @onchange="e => CambiaSelezione(
+                               model.ExtraSelezionati,
+                               opzione.Id,
+                               (bool)e.Value!)" />
+
+                    <label class="form-check-label">
+                        @DescrizioneOpzione(opzione)
+                    </label>
+                </div>
+            }
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Note</label>
+
+            <InputTextArea class="form-control"
+                           @bind-Value="model.Note"
+                           placeholder="Esempio: poca salsa, ben cotto..." />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Quantità</label>
+
+            <InputNumber class="form-control"
+                         @bind-Value="model.Quantita" />
+        </div>
+
+        <div class="fs-5 mb-3">
+            Totale:
+            <strong>@TotaleComposizione.ToString("C")</strong>
+        </div>
+
+        <button class="btn btn-success"
+                @onclick="AggiungiComposizioneAlCarrelloAsync">
+            Aggiungi al carrello
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ProdottoId { get; set; }
+
+    private ComposizioneKebabModel model = new();
+    private List<OpzioneProdotto> opzioni = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private IEnumerable<OpzioneProdotto> OpzioniSelezionate =>
+        opzioni.Where(o =>
+            o.Id == model.PaneSelezionatoId ||
+            o.Id == model.CarneSelezionataId ||
+            model.VerdureSelezionate.Contains(o.Id) ||
+            model.SalseSelezionate.Contains(o.Id) ||
+            model.ExtraSelezionati.Contains(o.Id));
+
+    private decimal PrezzoUnitario =>
+        model.PrezzoBase +
+        OpzioniSelezionate.Sum(o => o.Sovrapprezzo);
+
+    private decimal TotaleComposizione =>
+        PrezzoUnitario * model.Quantita;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var prodotto = await Db.Prodotti
+                .Include(p => p.ProdottiOpzioni)
+                .ThenInclude(po => po.OpzioneProdotto)
+                .FirstOrDefaultAsync(p => p.Id == ProdottoId);
+
+            if (prodotto is null)
+            {
+                errorMessage = "Prodotto non trovato.";
+                return;
+            }
+
+            model.ProdottoId = prodotto.Id;
+            model.NomeProdotto = prodotto.Nome;
+            model.PrezzoBase = prodotto.Prezzo;
+
+            opzioni = prodotto.ProdottiOpzioni
+                .Select(po => po.OpzioneProdotto)
+                .Where(o => o.Disponibile)
+                .OrderBy(o => o.Categoria)
+                .ThenBy(o => o.Nome)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il caricamento della composizione.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<OpzioneProdotto> OpzioniPerCategoria(string categoria)
+    {
+        return opzioni.Where(o =>
+            o.Categoria.Equals(
+                categoria,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void CambiaSelezione(
+        HashSet<int> selezione,
+        int opzioneId,
+        bool selezionata)
+    {
+        if (selezionata)
+        {
+            selezione.Add(opzioneId);
+        }
+        else
+        {
+            selezione.Remove(opzioneId);
+        }
+    }
+
+    private static string DescrizioneOpzione(OpzioneProdotto opzione)
+    {
+        return opzione.Sovrapprezzo > 0
+            ? $"{opzione.Nome} (+{opzione.Sovrapprezzo:C})"
+            : opzione.Nome;
+    }
+
+private async Task AggiungiComposizioneAlCarrelloAsync()
+{
+    try
+    {
+        errorMessage = null;
+
+        if (model.PaneSelezionatoId is null)
+        {
+            errorMessage = "Seleziona il tipo di pane.";
+            return;
+        }
+
+        if (model.CarneSelezionataId is null)
+        {
+            errorMessage = "Seleziona il tipo di carne.";
+            return;
+        }
+
+        if (model.Quantita < 1)
+        {
+            errorMessage = "La quantità deve essere almeno 1.";
+            return;
+        }
+
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            var returnUrl = Uri.EscapeDataString(
+                $"/componi-kebab/{ProdottoId}");
+
+            Navigation.NavigateTo(
+                $"/Account/Login?returnUrl={returnUrl}");
+
+            return;
+        }
+
+        var email =
+            user.FindFirstValue(ClaimTypes.Email)
+            ?? user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errorMessage = "Impossibile identificare l'utente autenticato.";
+            return;
+        }
+
+        email = email.Trim().ToLowerInvariant();
+
+        var utente = await Db.Utenti
+            .FirstOrDefaultAsync(u =>
+                u.Email.ToLower() == email);
+
+        if (utente is null)
+        {
+            errorMessage = "Utente non trovato nel sistema.";
+            return;
+        }
+
+        var carrello = await Db.Carrelli
+            .Where(c => c.UtenteId == utente.Id)
+            .OrderByDescending(c => c.DataCreazione)
+            .FirstOrDefaultAsync();
+
+        if (carrello is null)
+        {
+            carrello = new Carrello
+            {
+                UtenteId = utente.Id,
+                DataCreazione = DateTime.Now
+            };
+
+            Db.Carrelli.Add(carrello);
+            await Db.SaveChangesAsync();
+        }
+
+        var opzioniSelezionate = OpzioniSelezionate.ToList();
+
+        var rigaCarrello = new CarrelloProdottoEntity
+        {
+            CarrelloId = carrello.Id,
+            ProdottoId = model.ProdottoId,
+            Quantita = model.Quantita,
+            Note = string.IsNullOrWhiteSpace(model.Note)
+                ? null
+                : model.Note.Trim()
+        };
+
+        Db.CarrelloProdotti.Add(rigaCarrello);
+        await Db.SaveChangesAsync();
+
+        foreach (var opzione in opzioniSelezionate)
+        {
+            Db.CarrelliProdottiOpzioni.Add(
+                new CarrelloProdottoOpzione
+                {
+                    CarrelloProdottoId = rigaCarrello.Id,
+                    OpzioneProdottoId = opzione.Id,
+                    Sovrapprezzo = opzione.Sovrapprezzo
+                });
+        }
+
+        await Db.SaveChangesAsync();
+
+        Navigation.NavigateTo($"/carrello/{carrello.Id}");
+    }
+    catch (Exception ex)
+    {
+        errorMessage =
+            "Errore durante l'aggiunta del kebab al carrello.";
+
+        Console.Error.WriteLine(ex.ToString());
+    }
+}
+
+    private sealed class ComposizioneKebabModel
+    {
+        public int ProdottoId { get; set; }
+        public string NomeProdotto { get; set; } = string.Empty;
+        public decimal PrezzoBase { get; set; }
+        public int? PaneSelezionatoId { get; set; }
+        public int? CarneSelezionataId { get; set; }
+        public HashSet<int> VerdureSelezionate { get; set; } = new();
+        public HashSet<int> SalseSelezionate { get; set; } = new();
+        public HashSet<int> ExtraSelezionati { get; set; } = new();
+        public string? Note { get; set; }
+        public int Quantita { get; set; } = 1;
+    }
+}

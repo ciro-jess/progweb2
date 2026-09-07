@@ -1,0 +1,145 @@
+@using System.ComponentModel.DataAnnotations
+@using System.Reflection.Metadata
+@using Microsoft.EntityFrameworkCore.Query
+@using OnlineShop.Components.Pages
+@rendermode InteractiveServer
+
+<div class="modal fade @(isVisible ? "show" : "")" id="paymentModel" tabindex="1" aria-labelledby="paymentModalLabel" aria-hidden="@(!isVisible)" style="@(isVisible ? "display: block;" : "display: none;")">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="paymentModelLabel"> PAGAMENTO</h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6 class="text-muted"> Importo totale</h6>
+                    <h3 class="text-success"> € @TotalAmount.ToString("F2")</h3>
+                </div>
+
+                <EditForm EditContext="editContext" OnValidSubmit="OnSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="alert alert-danger" role="alert"/>
+
+                    <div class="mb-3">
+                        <label for="cardNumber" class="form-label">Numero Carta</label>
+                        <InputText id="cardNumber" @bind-Value="input.CardNumber" class="form-control" 
+                            placeholder="1234 5678 9012 3456" maxlength="19" />
+                        <ValidationMessage For="() => input.CardNumber" class="text-danger" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cardHolder" class="form-label">Titolare</label>
+                        <InputText id="cardHolder" @bind-Value="input.CardHolder" class="form-control" 
+                            placeholder="Nome Cognome" />
+                        <ValidationMessage For="() => input.CardHolder" class="text-danger" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6">
+                            <label for="expiry" class="form-label">Scadenza</label>
+                            <InputText id="expiry" @bind-Value="input.ExpiryDate" class="form-control" 
+                                placeholder="MM/YY" maxlength="5" />
+                            <ValidationMessage For="() => input.ExpiryDate" class="text-danger" />
+                        </div>
+                        <div class="col-6">
+                            <label for="cvv" class="form-label">CVV</label>
+                            <InputText id="cvv" @bind-Value="input.CVV" class="form-control" 
+                                placeholder="123" maxlength="3" />
+                            <ValidationMessage For="() => input.CVV" class="text-danger" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer mt-4">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Annulla</button>
+                        <button type="submit" class="btn btn-success">Paga € @TotalAmount.ToString("F2")</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter]
+    public decimal TotalAmount {get; set;} = 0m;
+    
+    [Parameter]
+    public EventCallback<PaymentData> OnPaymentSubmitted {get; set; }
+
+    private EditContext? editContext;
+    private PaymentInput input {get; set;} = new();
+    private bool isVisible = false;
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(input);
+    }
+
+    public Task Show()
+    {
+        isVisible = true;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+    
+    public Task Hide()
+    {
+        isVisible = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    public void CloseModal()
+    {
+        isVisible = false;
+        input = new();
+        editContext = new EditContext(input);
+    }
+
+    private async Task OnSubmit()
+    {
+        var paymentData = new PaymentData
+        {
+            CardNumber = input.CardNumber,
+            CardHolder = input.CardHolder,
+            ExpiryDate = input.ExpiryDate,
+            CVV = input.CVV,
+            Amount = TotalAmount
+        };
+        await OnPaymentSubmitted.InvokeAsync(paymentData);
+        await Hide();
+    }
+
+    private class PaymentInput 
+    {
+        [Required(ErrorMessage = "IL numero della carta è obbligatorio")]
+        public string CardNumber {get; set;} ="";
+
+        [Required(ErrorMessage = "IL titolare della carta è obbligatorio")]
+        public string CardHolder {get; set;} ="";
+
+        [Required(ErrorMessage = "la scadenza è obbligatoria")]
+        [RegularExpression(@"^\d{2}/\d{2}$", ErrorMessage ="Formato: MM/YY")]
+        public string ExpiryDate {get; set;} ="";
+
+        [Required(ErrorMessage = "il CVV è obbligatorio")]
+        [RegularExpression(@"^\d{3}$", ErrorMessage ="IL CVV deve essere di 3 cifre")]
+        public string CVV {get; set;} ="";
+    }
+
+    public class PaymentData 
+    {
+        public string CardNumber {get; set;} = "";
+        public string CardHolder {get; set;} = "";
+        public string ExpiryDate {get; set;} = "";
+        public string CVV {get; set;} = "";
+        public decimal Amount {get; set;}
+    }
+}

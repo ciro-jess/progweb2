@@ -1,0 +1,102 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using OnlineShop.Data.Entities
+
+<div class="card card-body mb-4 prodotti-form">
+    <EditForm EditContext="editContext" OnValidSubmit="HandleValidSubmitAsync" FormName="prodotti-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Nome</label>
+                <InputText class="form-control" @bind-Value="Product.Nome" />
+                <ValidationMessage For="@(() => Product.Nome)" />
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Categoria</label>
+                <InputText class="form-control" @bind-Value="Product.Categoria" />
+                <ValidationMessage For="@(() => Product.Categoria)" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Descrizione</label>
+                <InputTextArea class="form-control" @bind-Value="Product.Descrizione" />
+                <ValidationMessage For="@(() => Product.Descrizione)" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label" for="fotoCibo">seleziona una foto</label>
+                <InputFile id="fotoCibo" @bind-value="Product.ImmagineUrl" />
+                <ValidationMessage For="@(() => Product.ImmagineUrl)" />
+
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">Prezzo</label>
+                <InputNumber class="form-control" @bind-Value="Product.Prezzo" />
+                <ValidationMessage For="@(() => Product.Prezzo)" />
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">Quantità</label>
+                <InputNumber class="form-control" @bind-Value="Product.QuantitaMagazzino" />
+                <ValidationMessage For="@(() => Product.QuantitaMagazzino)" />
+            </div>
+
+            <div class="col-12 col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    <InputCheckbox class="form-check-input" @bind-Value="Product.Disponibile" />
+                    <label class="form-check-label">Disponibile</label>
+                </div>
+            </div>
+
+             <div class="col-12 col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    <InputCheckbox class="form-check-input" @bind-Value="Product.Personalizzabile" />
+                    <label class="form-check-label">Personalizzabile</label>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary me-2">
+                Salva prodotto
+            </button>
+
+            <button type="button" class="btn btn-secondary" @onclick="CancelAsync">
+                Annulla
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter]
+    public Prodotto Product { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<Prodotto> OnValidSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private EditContext? editContext;
+
+    protected override void OnParametersSet()
+    {
+        editContext = new EditContext(Product);
+    }
+
+    private async Task HandleValidSubmitAsync()
+    {
+        await OnValidSubmit.InvokeAsync(Product);
+    }
+
+    private async Task CancelAsync()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

@@ -1,0 +1,18 @@
+@page "/home"
+@inject NavigationManager Navigation
+
+<PageTitle>Ottava Meraviglia</PageTitle>
+
+<div class="home-page container py-5 text-center">
+    <h1>Benvenuto in Ottava Meraviglia</h1>
+    <p>Usa il menu in alto per navigare tra i prodotti, il catalogo e le tue impostazioni.</p>
+    <div class="d-flex justify-content-center gap-2 mt-4">
+        <button class="btn btn-primary" @onclick="GoCatalogo">Catalogo</button>
+        <button class="btn btn-outline-secondary" @onclick="GoProdotti">Prodotti</button>
+    </div>
+</div>
+
+@code {
+    private void GoCatalogo() => Navigation.NavigateTo("/catalogo");
+    private void GoProdotti() => Navigation.NavigateTo("/prodotti");
+}

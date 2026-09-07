@@ -1,0 +1,154 @@
+@page "/prodotti/{Id:int}"
+
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<PageTitle>Dettaglio prodotto</PageTitle>
+
+<h1>Dettaglio prodotto</h1>
+
+@if (isLoading)
+{
+    <p>Caricamento prodotto...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        <strong>Errore:</strong> @errorMessage
+    </div>
+}
+else if (prodotto is null)
+{
+    <div class="alert alert-warning">
+        <h2>Prodotto non trovato</h2>
+
+        <p>
+            Non è stato trovato un prodotto con ID
+            <strong>@Id</strong>.
+        </p>
+    </div>
+}
+else
+{
+    <div class="dettaglio-prodotto">
+
+        <h2>@prodotto.Nome</h2>
+
+        <p>
+            <strong>ID prodotto:</strong>
+            @prodotto.Id
+        </p>
+
+        <p>
+            <strong>Categoria:</strong>
+            @prodotto.Categoria
+        </p>
+
+        <p>
+            <strong>Descrizione:</strong>
+            @prodotto.Descrizione
+        </p>
+
+        <p>
+            <strong>Prezzo:</strong>
+            @prodotto.Prezzo.ToString("C")
+        </p>
+
+        <p>
+            <strong>Disponibilità:</strong>
+            @(prodotto.Disponibile
+                ? "Disponibile"
+                : "Non disponibile")
+        </p>
+
+        @if (prodotto.DettaglioProdotto is not null)
+        {
+            <hr />
+
+            <h3>Informazioni aggiuntive</h3>
+
+            <p>
+                <strong>ID dettaglio:</strong>
+                @prodotto.DettaglioProdotto.Id
+            </p>
+
+            <p>
+                <strong>Marca:</strong>
+                @MostraValore(prodotto.DettaglioProdotto.Marca)
+            </p>
+
+            <p>
+                <strong>Materiale:</strong>
+                @MostraValore(prodotto.DettaglioProdotto.Materiale)
+            </p>
+
+            <p>
+                <strong>Descrizione dettagliata:</strong>
+                @MostraValore(prodotto.DettaglioProdotto.Descrizione)
+            </p>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                Il prodotto esiste, ma non possiede ancora un dettaglio
+                associato.
+            </div>
+        }
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="TornaAlCatalogo">
+            Torna al catalogo
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Prodotto? prodotto;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        prodotto = null;
+
+        try
+        {
+            prodotto = await Db.Prodotti
+                .AsNoTracking()
+                .Include(p => p.DettaglioProdotto)
+                .FirstOrDefaultAsync(p => p.Id == Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void TornaAlCatalogo()
+    {
+        Navigation.NavigateTo("/catalogo");
+    }
+
+    private static string MostraValore(string? valore)
+    {
+        return string.IsNullOrWhiteSpace(valore)
+            ? "Non specificato"
+            : valore;
+    }
+}

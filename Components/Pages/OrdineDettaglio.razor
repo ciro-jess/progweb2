@@ -1,0 +1,158 @@
+@page "/ordine/{OrdineId:int}"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+@using OrdineEntity = OnlineShop.Data.Entities.Ordine
+@using System.Security.Claims
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Dettaglio ordine | Ottava Meraviglia</PageTitle>
+
+<div class="ordine-dettaglio-page container">
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Caricamento dettaglio ordine...</div>
+    }
+    else if (ordine is null)
+    {
+        <div class="alert alert-warning">Ordine non trovato.</div>
+    }
+    else
+    {
+        <header class="ordine-header">
+            <div>
+                <p class="ordine-kicker">Dettaglio ordine</p>
+                <h1 class="ordine-title">Ordine #@ordine.Id</h1>
+            </div>
+            <button class="btn ordine-back-btn" @onclick="TornaIndietro">
+                Torna agli ordini
+            </button>
+        </header>
+
+        <div class="ordine-grid">
+            <section class="ordine-card">
+                <div class="ordine-card-header">
+                    <h2>Prodotti ordinati</h2>
+                </div>
+                <div class="ordine-table-wrap">
+                    <table class="ordine-table">
+                        <thead>
+                            <tr>
+                                <th>Prodotto</th>
+                                <th>Quantità</th>
+                                <th>Prezzo unitario</th>
+                                <th>Totale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var dettaglio in ordine.OrdineProdotti)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="ordine-product-name">@dettaglio.Prodotto?.Nome</div>
+                                        <small class="ordine-product-category">@dettaglio.Prodotto?.Categoria</small>
+                                        @if (!string.IsNullOrWhiteSpace(dettaglio.OpzioniSelezionate))
+                                        {
+                                            <small class="ordine-product-options">
+                                                Scelte: @dettaglio.OpzioniSelezionate
+                                            </small>
+                                        }
+                                    </td>
+                                    <td>@dettaglio.Quantita</td>
+                                    <td>@dettaglio.PrezzoUnitario.ToString("C")</td>
+                                    <td>@((dettaglio.PrezzoUnitario * dettaglio.Quantita).ToString("C"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                       
+                        
+                    </table>
+                </div>
+            </section>
+
+            <aside>
+                <div class="ordine-card mb-4">
+                    <div class="ordine-card-header">
+                        <h2>Informazioni ordine</h2>
+                    </div>
+                    <div class="ordine-summary">
+                        <p><strong>Cliente:</strong> <span>@ordine.Utente?.NomeCompleto</span></p>
+                        <p><strong>Email:</strong> <span>@ordine.Utente?.Email</span></p>
+                        
+                        <p><strong>Data:</strong> <span>@ordine.DataOrdine.ToString("dd/MM/yyyy HH:mm")</span></p>
+                        <p>
+                            <strong>Stato:</strong>
+                            <span class="ordine-badge ordine-badge--@GetStatoBadgeClass(ordine.Stato)">@ordine.Stato</span>
+                        </p>
+                        <p class="ordine-total">
+                            <strong>Totale:</strong>
+                            <span class="ordine-total-value">@ordine.Totale.ToString("C")</span>
+                        </p>
+                    </div>
+                </div>
+
+                @if (ordine.Pagamento is not null)
+                {
+                    <div class="ordine-card">
+                        <div class="ordine-card-header">
+                            <h3>Pagamento</h3>
+                        </div>
+                        <div class="ordine-summary">
+                            <p><strong>ID pagamento:</strong> <span>@ordine.Pagamento.Id</span></p>
+                            <p><strong>Metodo:</strong> <span>@ordine.Pagamento.MetodoPagamento</span></p>
+                            <p><strong>Importo:</strong> <span>@ordine.Pagamento.Importo.ToString("C")</span></p>
+                            <p><strong>Stato:</strong> <span>@ordine.Pagamento.Stato</span></p>
+                            <p><strong>Transaction ID:</strong> <span>@ordine.Pagamento.TransactionId</span></p>
+                        </div>
+                    </div>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int OrdineId { get; set; }
+
+    private OrdineEntity? ordine;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        ordine = await Db.Ordini
+            .Include(o => o.Utente)
+            .Include(o => o.OrdineProdotti)
+                .ThenInclude(op => op.Prodotto)
+            .Include(o => o.Pagamento)
+            .FirstOrDefaultAsync(o => o.Id == OrdineId);
+
+        isLoading = false;
+    }
+
+    private async Task TornaIndietro()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        Navigation.NavigateTo(user.IsInRole("Admin") ? "/admin/ordini" : "/ordini");
+    }
+
+    private string GetStatoBadgeClass(string stato)
+    {
+        return stato switch
+        {
+            "Pagato" => "success",
+            "Spedito" => "info",
+            "Consegnato" => "primary",
+            "Annullato" => "danger",
+            "In Sospeso" => "warning",
+            _ => "secondary"
+        };
+    }
+}

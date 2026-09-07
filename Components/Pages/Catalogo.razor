@@ -1,0 +1,300 @@
+@page "/"
+@page "/catalogo"
+
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+@using OnlineShop.Components.Shared
+@using Microsoft.AspNetCore.Components.Authorization
+@using CarrelloProdottoEntity = OnlineShop.Data.Entities.CarrelloProdotto
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Catalogo | Ottava Meraviglia</PageTitle>
+
+<div class="catalogo-page">
+    <header class="catalogo-hero">
+        <div>
+            <p class="catalogo-eyebrow">SCEGLI LA TUA PRELIBATEZZA </p>
+            <h1>MENU ON-LINE VERSIONE 2.5</h1>
+            <p class="catalogo-intro">
+                Scopri la nostra selezione di prodotti .
+            </p>
+           
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="catalogo-state catalogo-state--loading">Caricamento catalogo in corso...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="catalogo-state catalogo-state--error">@errorMessage</div>
+    }
+    else if (!prodotti.Any())
+    {
+        <div class="catalogo-state">Nessun prodotto disponibile al momento.</div>
+    }
+    else
+    {
+        <div class="catalogo-grid">
+            @foreach (var prodotto in prodotti)
+            {
+                <ProductCard
+                    Titolo="@prodotto.Nome"
+                    Sottotitolo="@prodotto.Categoria"
+                    Prezzo='@prodotto.Prezzo.ToString("C")'  
+                    Descrizione="@prodotto.Descrizione"   
+                    Badge='@(prodotto.Disponibile ? "Disponibile" : "Non disponibile")'  
+                    TastoPulsanteDettagli="Dettagli"
+                    PulsanteDisabilitatoCarrello="@(!prodotto.Disponibile)"
+                    PulsanteDisabilitatoDettagli = "false"              
+                    OnDettagliClick="@(() => ApriProdotto(prodotto.Id))" 
+                    TastoPulsanteCarrello="aggiungi al carrello"
+                    OnAggiungiAlCarrelloClick="@(()=> AddItemToCarrello(prodotto.Id))"/>
+
+            }
+        </div>
+    }
+    </div>
+
+@code {
+    private List<Prodotto> prodotti = new();
+    
+    private List<global::OnlineShop.Data.Entities.Ordine> ordini = new();
+    private global::OnlineShop.Data.Entities.Ordine editingOrder = new();
+    
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            prodotti = await Db.Prodotti.AsNoTracking().ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage= "si è verificato un errore durante il caricamento del catalogo";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading =false;
+            await LoadOrdersAsync();
+        }
+    }
+
+
+private async Task AddItemToCarrello(int prodottoId)
+{
+    try
+    {
+        errorMessage = null;
+
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        var user = authState.User;
+
+        // Se l'utente non è autenticato, viene mandato al login
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            var returnUrl = Uri.EscapeDataString("/catalogo");     // raggiunge il catalogo 
+
+            Navigation.NavigateTo(
+                $"/Account/Login?returnUrl={returnUrl}");
+
+            return;
+        }
+
+        // Verifica che il prodotto esista e sia disponibile
+        var prodotto = await Db.Prodotti
+            .FirstOrDefaultAsync(p => p.Id == prodottoId);
+
+        if (prodotto is null)
+        {
+            errorMessage = "Il prodotto selezionato non esiste.";
+            return;
+        }
+
+        if (!prodotto.Disponibile)
+        {
+            errorMessage = "Il prodotto selezionato non è disponibile.";
+            return;
+        }
+
+        // Recupera o crea l'utente dell'applicazione
+        var utente = await GetCurrentAuthenticatedUtenteAsync();
+
+        if (utente is null)
+        {
+            errorMessage = "Impossibile identificare l'utente autenticato.";
+            return;
+        }
+
+        // Cerca il carrello dell'utente
+        var carrello = await Db.Carrelli
+            .Where(c => c.UtenteId == utente.Id)
+            .OrderByDescending(c => c.DataCreazione)
+            .FirstOrDefaultAsync();
+
+        // Se non esiste, crea il carrello
+        if (carrello is null)
+        {
+            carrello = new Carrello
+            {
+                UtenteId = utente.Id,
+                DataCreazione = DateTime.Now
+            };
+
+            Db.Carrelli.Add(carrello);
+            await Db.SaveChangesAsync();
+        }
+
+        // Cerca il prodotto dentro il carrello
+        var elementoEsistente = await Db.CarrelloProdotti
+            .FirstOrDefaultAsync(cp =>
+                cp.CarrelloId == carrello.Id &&
+                cp.ProdottoId == prodottoId);
+
+        if (elementoEsistente is not null)
+        {
+            elementoEsistente.Quantita++;
+        }
+        else
+        {
+            var nuovoElemento = new CarrelloProdottoEntity
+            {
+                CarrelloId = carrello.Id,
+                ProdottoId = prodottoId,
+                Quantita = 1
+            };
+
+            Db.CarrelloProdotti.Add(nuovoElemento);
+        }
+
+        await Db.SaveChangesAsync();
+
+        errorMessage = null;
+
+        Console.WriteLine(
+            $"Prodotto {prodottoId} aggiunto al carrello {carrello.Id}");
+    }
+    catch (Exception ex)
+    {
+        errorMessage = "Errore durante l'aggiunta del prodotto al carrello.";
+
+        Console.Error.WriteLine(ex.ToString());
+    }
+}
+
+    private void ApriProdotto( int Id)
+    {
+        Navigation.NavigateTo($"/prodotti/{Id}");
+
+    }
+
+
+    private async Task<Utente?> GetCurrentAuthenticatedUtenteAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var email = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        email = email.Trim().ToLowerInvariant();
+        var utente = await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+        if (utente is not null)
+        {
+            return utente;
+        }
+
+        var nome = email.Split('@')[0];
+        utente = new Utente
+        {
+            Nome = nome,
+            Cognome = string.Empty,
+            Email = email,
+            PasswordHash = string.Empty,
+            Ruolo = "Cliente",
+            DataRegistrazione = DateTime.Now
+        };
+
+        Db.Utenti.Add(utente);
+        await Db.SaveChangesAsync();
+
+        return utente;
+    }
+
+    private async Task CreaNuovoOrdine()
+    {
+        try
+        {
+            errorMessage = null;
+            
+            var utente = await GetCurrentAuthenticatedUtenteAsync();
+
+            if (utente is null)
+            {
+                errorMessage = "Utente autenticato non trovato. Assicurati che l'utente esista nel sistema.";
+                return;
+            }
+
+            var nuovoCarrello = new Carrello
+            {
+                UtenteId = utente.Id,
+                DataCreazione = DateTime.Now
+            };
+
+            Db.Carrelli.Add(nuovoCarrello);
+            await Db.SaveChangesAsync();
+
+            Navigation.NavigateTo($"/carrello/{nuovoCarrello.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage ="Errore durante la creazione del nuovo ordine";
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+
+    private async Task LoadOrdersAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            ordini = await Db.Ordini
+                .Include(o => o.Utente)
+                .AsNoTracking()
+                .OrderByDescending(o => o.DataOrdine)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il caricamento degli ordini.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    
+}

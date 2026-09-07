@@ -1,0 +1,72 @@
+.catalogo-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.25rem 0 2.5rem;
+}
+
+.catalogo-hero {
+    padding: 2rem;
+    border-radius: 10px;
+    background: linear-gradient(120deg, #29231f 0%, #45372d 62%, #c9362b 100%);
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(92, 48, 27, 0.2);
+    border-left: 7px solid #e5a629;
+}
+
+.catalogo-eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #ffd36a;
+}
+
+.catalogo-hero h1 {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.6rem, 2.2vw, 2.4rem);
+}
+
+.catalogo-intro {
+    margin: 0;
+    max-width: 720px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+}
+
+.catalogo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+}
+
+.catalogo-state {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    background: var(--food-paper);
+    color: var(--food-charcoal);
+    border: 1px solid var(--food-line);
+}
+
+.catalogo-state--error {
+    background: #fff0ed;
+    color: var(--food-red-dark);
+    border-color: #f3b7ac;
+}
+
+.catalogo-state--loading {
+    background: #fff7dc;
+    color: #8a6410;
+    border-color: #f0d68b;
+}
+
+@media (max-width: 768px) {
+    .catalogo-hero {
+        padding: 1.25rem;
+    }
+
+    .catalogo-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,148 @@
+@page "/ordini"
+@attribute [Authorize]
+
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using OnlineShop.Data.Entities
+@using OrdineEntity = OnlineShop.Data.Entities.Ordine
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>I miei ordini | Ottava Meraviglia</PageTitle>
+
+<div class="ordini-page">
+    <header class="ordini-hero mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <p>Area clienti</p>
+                <h1>I miei Ordini</h1>
+            </div>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Caricamento in corso...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else if (!ordini.Any())
+    {
+        <div class="alert alert-warning">Non hai effettuato ordini. <a href="/catalogo">Vai al catalogo</a></div>
+    }
+    else
+    {
+        <div class="ordini-grid">
+            @foreach (var ordine in ordini)
+            {
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Ordine #@ordine.Id</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">@ordine.DataOrdine.ToString("dd/MM/yyyy HH:mm")</p>
+
+                        <div class="mb-3">
+                            <strong>Stato:</strong>
+                            <span class="ordini-badge ordini-badge--@GetStatoBadgeClass(ordine.Stato)">@ordine.Stato</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Totale:</strong>
+                            <span class="text-success h5">€ @ordine.Totale.ToString("F2")</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Prodotti:</strong>
+                            <span class="ordini-badge ordini-badge--secondary">@ordine.OrdineProdotti.Count()</span>
+                        </div>
+
+                        @if (ordine.Pagamento != null)
+                        {
+                            <div class="mb-3">
+                                <strong>Pagamento:</strong>
+                                <span class="ordini-badge ordini-badge--info">@ordine.Pagamento.Stato</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-sm btn-primary" @onclick="() => VisualizzaDettagli(ordine.Id)">
+                            Dettagli
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<OrdineEntity> ordini = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? userEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity.Name;
+
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    // Recupera l'utente dal DB
+                    var utente = await Db.Utenti
+                        .FirstOrDefaultAsync(u => u.Email == userEmail);
+
+                    if (utente != null)
+                    {
+                        // Carica gli ordini dell'utente
+                        ordini = await Db.Ordini
+                            .Where(o => o.UtenteId == utente.Id)
+                            .Include(o => o.OrdineProdotti)
+                            .Include(o => o.Pagamento)
+                            .OrderByDescending(o => o.DataOrdine)
+                            .ToListAsync();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore nel caricamento degli ordini: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void VisualizzaDettagli(int ordineId)
+    {
+        Navigation.NavigateTo($"/ordine/{ordineId}");
+    }
+
+    private string GetStatoBadgeClass(string stato)
+    {
+        return stato switch
+        {
+            "Accettato" => "success",
+            "Pagato" => "info",
+            "Spedito" => "warning",
+            "Consegnato" => "primary",
+            "Rifiutato" => "danger",
+            "InAttesa" => "secondary",
+            _ => "secondary"
+        };
+    }
+}

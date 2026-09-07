@@ -1,0 +1,70 @@
+.utenti-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1rem 0 2rem;
+}
+
+.utenti-hero {
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.utenti-eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #cbd5e1;
+}
+
+.utenti-hero h1 {
+    margin: 0 0 0.4rem;
+    font-size: clamp(1.4rem, 2vw, 1.9rem);
+}
+
+.utenti-intro {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+}
+
+.Utenti-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.utenti-state {
+    padding: 1rem 1.1rem;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.utenti-state--error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.utenti-state--loading {
+    background: #fdf4ff;
+    border-color: #e9d5ff;
+    color: #7c3aed;
+}
+
+@media (max-width: 768px) {
+    .utenti-hero {
+        padding: 1.15rem;
+    }
+
+    .Utenti-grid {
+        grid-template-columns: 1fr;
+    }
+}

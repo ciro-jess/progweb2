@@ -1,0 +1,178 @@
+.ordine-dettaglio-page {
+    padding: 2rem 0 3rem;
+    color: #29231f;
+}
+
+.ordine-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e5a629;
+}
+
+.ordine-kicker {
+    margin: 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #946d20;
+    font-weight: 700;
+}
+
+.ordine-title {
+    margin: 0.35rem 0 0;
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    font-weight: 700;
+    color: #29231f;
+}
+
+.ordine-back-btn {
+    border-radius: 8px;
+    padding: 0.7rem 1.2rem;
+    font-weight: 600;
+    border: 1px solid #eadbc8;
+    background: #fffdf8;
+    color: #29231f;
+    transition: all 0.2s ease;
+}
+
+.ordine-back-btn:hover {
+    background: #fff0ed;
+    border-color: #c9362b;
+}
+
+.ordine-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: 1.5rem;
+}
+
+.ordine-card {
+    background: #fff;
+    border: 1px solid #eadbc8;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(92, 48, 27, 0.08);
+    overflow: hidden;
+}
+
+.ordine-card-header {
+    background: #fff1d6;
+    border-bottom: 1px solid #eadbc8;
+    padding: 1rem 1.25rem;
+}
+
+.ordine-card-header h2,
+.ordine-card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #29231f;
+}
+
+.ordine-table-wrap {
+    overflow: auto;
+}
+
+.ordine-table {
+    margin: 0;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ordine-table th,
+.ordine-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f1e6d8;
+    vertical-align: middle;
+}
+
+.ordine-table thead th {
+    background: #fffaf1;
+    color: #74675c;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.ordine-table tbody tr:hover {
+    background: #fff7ed;
+}
+
+.ordine-product-name {
+    font-weight: 700;
+    color: #29231f;
+}
+
+.ordine-product-category {
+    color: #74675c;
+    font-size: 0.8rem;
+}
+
+.ordine-summary {
+    padding: 1.1rem 1.25rem;
+}
+
+.ordine-summary p {
+    margin: 0 0 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #5e5046;
+}
+
+.ordine-summary strong {
+    color: #29231f;
+}
+
+.ordine-total {
+    font-size: 1.05rem;
+    color: #29231f;
+    font-weight: 700;
+}
+
+.ordine-total-value {
+    color: #c9362b;
+    font-weight: 800;
+}
+
+.ordine-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.38rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.ordine-badge--success { background: #d1fae5; color: #065f46; }
+.ordine-badge--info { background: #dbeafe; color: #1d4ed8; }
+.ordine-badge--primary { background: #dbeafe; color: #1e3a8a; }
+.ordine-badge--danger { background: #fee2e2; color: #991b1b; }
+.ordine-badge--warning { background: #fef3c7; color: #92400e; }
+.ordine-badge--secondary { background: #e5e7eb; color: #374151; }
+
+@media (max-width: 991px) {
+    .ordine-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ordine-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 575px) {
+    .ordine-table th,
+    .ordine-table td {
+        padding: 0.75rem 0.8rem;
+    }
+
+    .ordine-back-btn {
+        width: 100%;
+    }
+}

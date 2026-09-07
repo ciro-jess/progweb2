@@ -1,0 +1,28 @@
+﻿@using SQLitePCL
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <OnlineShop.Components.Account.Shared.RedirectToLogin />
+                }
+                else
+                {
+                    <p class="text-danger text-center mt-5">    
+                        non hai i permessi per accedere a questa pagina.
+                    </p>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <div class="container py-5 text-center">
+                <h1>Pagina non trovata</h1>
+                <p>La pagina richiesta non esiste. Torna alla <a href="/">home</a>.</p>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

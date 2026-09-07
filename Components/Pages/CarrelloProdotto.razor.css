@@ -1,0 +1,134 @@
+.carrello-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem 0 2rem;
+}
+
+.carrello-page header {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.carrello-page header p {
+    margin: 0 0 0.35rem;
+    color: #6b7280;
+}
+
+.carrello-page header h1 {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.8rem, 2.3vw, 2.6rem);
+}
+
+.carrello-page header > div p:last-child {
+    margin: 0;
+    max-width: 720px;
+    color: rgba(15, 23, 42, 0.75);
+    line-height: 1.6;
+}
+
+.carrello-page .card {
+    border-radius: 1rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.carrello-page .card h2 {
+    margin-bottom: 1rem;
+}
+
+.carrello-page .table-responsive {
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.carrello-page .table {
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+}
+
+.carrello-page .table th,
+.carrello-page .table td {
+    vertical-align: middle;
+    border-color: #e5e7eb;
+}
+
+.carrello-page .table thead th {
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+}
+
+.carrello-page .table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.carrello-page .table td img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.carrello-page .table td .fw-bold {
+    margin-bottom: 0.2rem;
+}
+
+.carrello-page .table td .text-muted {
+    font-size: 0.95rem;
+}
+
+.carrello-page .input-group {
+    min-width: 140px;
+}
+
+.carrello-page .table .btn {
+    min-width: 100px;
+}
+
+.carrello-page .carrello-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.carrello-page .carrello-summary .fs-5 {
+    margin-bottom: 0.35rem;
+}
+
+.carrello-page .carrello-summary .btn-primary {
+    min-width: 170px;
+}
+
+@media (max-width: 768px) {
+    .carrello-page {
+        padding: 0.75rem 0 1.5rem;
+    }
+
+    .carrello-page header {
+        padding-bottom: 0.75rem;
+    }
+
+    .carrello-page .card,
+    .carrello-page .table-responsive,
+    .carrello-page .carrello-summary {
+        border-radius: 0.9rem;
+    }
+
+    .carrello-page .carrello-summary {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .carrello-page .carrello-summary .text-end {
+        text-align: left !important;
+    }
+}

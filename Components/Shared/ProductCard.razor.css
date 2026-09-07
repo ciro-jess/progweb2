@@ -1,0 +1,97 @@
+.product-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 220px;
+    padding: 1.25rem;
+    border: 1px solid #eadbc8;
+    border-radius: 10px;
+    background: var(--food-paper, #fffdf8);
+    box-shadow: 0 8px 24px rgba(92, 48, 27, 0.09);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px rgba(92, 48, 27, 0.17);
+}
+
+.product-card__badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: #e5a629;
+    color: #29231f;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.product-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.product-card__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #29231f;
+}
+
+.product-card__subtitle,
+.product-card__description {
+    margin: 0;
+    color: #74675c;
+    line-height: 1.5;
+}
+
+.product-card__price {
+    margin: 0;
+    color: #c9362b;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.product-card__subtitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.product-card__description {
+    font-size: 0.9rem;
+}
+
+.product-card__button {
+    margin-top: auto;
+    align-self: flex-start;
+    border: none;
+    border-radius: 0.7rem;
+    padding: 0.7rem 1rem;
+    background: #c9362b;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+
+.product-card__button:hover {
+    background: #94251f;
+}
+
+@media (max-width: 768px) {
+    .product-card {
+        min-height: 200px;
+        padding: 1rem;
+    }
+
+    .product-card__title {
+        font-size: 1rem;
+    }
+}

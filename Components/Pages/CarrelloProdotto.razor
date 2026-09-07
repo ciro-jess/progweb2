@@ -1,0 +1,580 @@
+@page "/carrello"
+@page "/carrello/{CarrelloId:int}"
+@attribute [Authorize(Roles = "Cliente")]
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using OnlineShop.Components.Shared
+@using OnlineShop.Data.Entities
+@using CarrelloProdottoEntity = OnlineShop.Data.Entities.CarrelloProdotto
+
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+
+<PageTitle>Carrello | Ottava Meraviglia</PageTitle>
+
+<div class="carrello-page">
+    <header class="mb-4">
+        <div>
+            <p class="text-muted">Carrello</p>
+            <h1>Prodotti nel carrello</h1>
+            <p>Qui trovi tutti i prodotti selezionati prima di procedere al pagamento.</p>
+        </div>
+    </header>
+    @if (isLoading)
+    {
+        <div class="alert alert-info">Caricamento del carrello in corso </div>
+    }
+    else{
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+             <div class="alert alert-success">@successMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                 @errorMessage
+            </div>
+            }
+    }
+        <div class="card card-body mb-4">
+            <h2 class="h5 mb-3">Aggiungi prodotto al carrello</h2>
+            @if (!prodotti.Any())
+            {
+                <div class="alert alert-secondary">Non ci sono prodotti disponibili per l'aggiunta.</div>
+            }
+            else
+            {
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">Prodotto</label>
+                        <select class="form-select" @bind="selectedProdottoId">
+                            @foreach (var prodotto in prodotti)
+                            {
+                                <option value="@prodotto.Id">@prodotto.Nome (@prodotto.Categoria) - @prodotto.Prezzo.ToString("C")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Quantità</label>
+                        <input type="number" min="1" class="form-control" @bind="selectedQuantita" />
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-success w-100" @onclick="AddItemToCarrello">Aggiungi al carrello</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (!carrelloProdotti.Any())
+        {
+            <div class="alert alert-warning">Il carrello è vuoto. Aggiungi un prodotto per procedere con l'ordine.</div>
+        }
+        else
+        {
+        <RadzenDataGrid Data="@carrelloProdotti"
+                        TItem="CarrelloProdottoEntity"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="10"
+                        EmptyText="Il carrello è vuoto."
+                        class="mb-4">
+            <Columns>
+                <RadzenDataGridColumn TItem="CarrelloProdottoEntity" Title="Prodotto" Sortable="false" Filterable="false">
+                    <Template Context="item">
+                        <div class="d-flex align-items-center gap-3">
+                            @if (!string.IsNullOrWhiteSpace(item.Prodotto?.ImmagineUrl))
+                            {
+                                <img src="@item.Prodotto.ImmagineUrl" alt="@item.Prodotto.Nome" class="img-thumbnail" style="width: 80px; height: auto; object-fit: cover;" />
+                            }
+                            <div>
+                                <div class="fw-bold">@item.Prodotto?.Nome</div>
+                                <div class="text-muted">@item.Prodotto?.Categoria</div>
+                                @if (item.Opzioni.Any())
+                                {
+                                    <div class="small text-muted">
+                                        Scelte: @string.Join(", ", item.Opzioni.Select(opzione => opzione.OpzioneProdotto.Nome.Trim()))
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="CarrelloProdottoEntity" Title="Prezzo" Sortable="false" Filterable="false">
+                    <Template Context="item">
+                        @item.Prodotto?.Prezzo.ToString("C")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="CarrelloProdottoEntity" Title="Quantità" Sortable="false" Filterable="false" Width="180px">
+                    <Template Context="item">
+                        <div class="input-group input-group-sm justify-content-center" style="max-width: 140px; margin: auto;">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => ChangeQuantity(item, -1)">-</button>
+                            <input class="form-control text-center" value="@item.Quantita" readonly />
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => ChangeQuantity(item, 1)">+</button>
+                        </div>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="CarrelloProdottoEntity" Title="Subtotale" Sortable="false" Filterable="false">
+                    <Template Context="item">
+                        @(item.Prodotto != null ? (item.Prodotto.Prezzo * item.Quantita).ToString("C") : "-")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="CarrelloProdottoEntity" Title="Azioni" Sortable="false" Filterable="false" Width="220px">
+                    <Template Context="item">
+                        <button class="btn btn-sm btn-danger" @onclick="() => RemoveItem(item)">Rimuovi</button>
+                        @if (item.Prodotto?.Personalizzabile == true )
+                        {
+                            <button type="button" class="btn btn-sm btn-success" @onclick="() => ApriProdotto(item.Prodotto)">Personalizza </button>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <p class="mb-0 text-muted">Carrello ID: @activeCarrelloId</p>
+            </div>
+            <div class="text-end">
+                <div class="fs-5 mb-1">Totale: <strong>@Totale.ToString("C")</strong></div>
+                <PaymentModel @ref="paymentModal" TotalAmount="@Totale" OnPaymentSubmitted="HandlePayment" />
+                <button class="btn btn-primary" @onclick="OpenPaymentModal">Vai al pagamento</button>
+            </div>
+        </div>
+    }
+    }
+</div>
+@code {
+
+
+    [Parameter]
+    public int? CarrelloId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private List<CarrelloProdottoEntity> carrelloProdotti = new();
+    private List<Prodotto> prodotti = new();
+    private int selectedProdottoId;
+    private int selectedQuantita = 1;
+    private int activeCarrelloId;
+    private int activeUtenteId;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string? successMessage;
+    private const string StatoOrdineInSospeso = "In Sospeso";
+
+    private PaymentModel? paymentModal;
+
+    private decimal Totale => carrelloProdotti.Sum(item => item.Prodotto?.Prezzo * item.Quantita ?? 0m);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadCarrelloAsync();
+    }
+
+    private async Task OpenPaymentModal()
+    {
+        if (paymentModal != null)
+            await paymentModal.Show();
+    }
+
+    private async Task HandlePayment(PaymentModel.PaymentData payment)
+    {
+        try
+        {
+            if (payment.Amount <= 0m)
+            {
+                errorMessage = "Importo del pagamento non valido.";
+                return;
+            }
+
+            errorMessage = null;
+            successMessage = null;
+            await ProceedToPayment();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il pagamento. L'ordine non è stato completato.";
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+private async Task SyncOrdineInSospesoAsync()
+{
+    try
+    {
+        var itemsCarrello = await Db.CarrelloProdotti
+            .Include(cp => cp.Prodotto)
+            .Include(cp => cp.Opzioni)
+                .ThenInclude(opzione => opzione.OpzioneProdotto)
+            .Where(cp => cp.CarrelloId == activeCarrelloId)
+            .ToListAsync();
+
+        var ordineInSospeso = await Db.Ordini
+            .FirstOrDefaultAsync(o =>
+                o.UtenteId == activeUtenteId &&
+                o.Stato == StatoOrdineInSospeso);
+
+        if (!itemsCarrello.Any())
+        {
+            if (ordineInSospeso is not null)
+            {
+                var dettagliOrdine = await Db.OrdiniProdotti
+                    .Where(op => op.OrdineId == ordineInSospeso.Id)
+                    .ToListAsync();
+
+                if (dettagliOrdine.Any())
+                {
+                    Db.OrdiniProdotti.RemoveRange(dettagliOrdine);
+                }
+
+                Db.Ordini.Remove(ordineInSospeso);
+                await Db.SaveChangesAsync();
+            }
+
+            return;
+        }
+
+        var totaleCarrello = itemsCarrello.Sum(item =>
+            item.Prodotto != null
+                ? item.Prodotto.Prezzo * item.Quantita
+                : 0m);
+
+        if (ordineInSospeso is null)
+        {
+            ordineInSospeso = new global::OnlineShop.Data.Entities.Ordine
+            {
+                UtenteId = activeUtenteId,
+                Totale = totaleCarrello,
+                Stato = StatoOrdineInSospeso,
+                DataOrdine = DateTime.Now
+            };
+
+            Db.Ordini.Add(ordineInSospeso);
+            await Db.SaveChangesAsync();
+        }
+        else
+        {
+            ordineInSospeso.Totale = totaleCarrello;
+            ordineInSospeso.DataOrdine = DateTime.Now;
+            ordineInSospeso.Stato = StatoOrdineInSospeso;
+            await Db.SaveChangesAsync();
+        }
+
+        var dettagliEsistenti = await Db.OrdiniProdotti
+            .Where(op => op.OrdineId == ordineInSospeso.Id)
+            .ToListAsync();
+
+        if (dettagliEsistenti.Any())
+        {
+            Db.OrdiniProdotti.RemoveRange(dettagliEsistenti);
+            await Db.SaveChangesAsync();
+        }
+
+        foreach (var item in itemsCarrello)
+        {
+            if (item.Prodotto is null)
+            {
+                continue;
+            }
+
+            Db.OrdiniProdotti.Add(new OrdineProdotto
+            {
+                OrdineId = ordineInSospeso.Id,
+                ProdottoId = item.ProdottoId,
+                Quantita = item.Quantita,
+                PrezzoUnitario = item.Prodotto.Prezzo,
+                OpzioniSelezionate = item.Opzioni.Any()
+                    ? string.Join(", ", item.Opzioni.Select(opzione => opzione.OpzioneProdotto.Nome.Trim()))
+                    : null
+            });
+        }
+
+        await Db.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        errorMessage = "Errore durante la sincronizzazione dell'ordine in sospeso.";
+        Console.Error.WriteLine(ex);
+    }
+}
+
+
+    private async Task LoadCarrelloAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            prodotti = await Db.Prodotti.AsNoTracking().OrderBy(p => p.Nome).ToListAsync();
+            if (selectedProdottoId == 0)
+            {
+                selectedProdottoId = prodotti.FirstOrDefault()?.Id ?? 0;
+            }
+
+            var utente = await GetCurrentAuthenticatedUtenteAsync();
+
+            if (utente is null)
+            {
+                errorMessage = "Utente autenticato non trovato. Assicurati di aver effettuato l'accesso.";
+                return;
+            }
+
+            activeUtenteId = utente.Id;
+
+            var carrelloQuery = Db.Carrelli
+                .Where(c => c.UtenteId == activeUtenteId);
+
+            var carrello = CarrelloId.HasValue
+                ? await carrelloQuery.FirstOrDefaultAsync(c => c.Id == CarrelloId.Value)
+                : await carrelloQuery.OrderByDescending(c => c.Id).FirstOrDefaultAsync();
+
+            if (carrello is null)
+            {
+                carrello = new Carrello
+                {
+                    UtenteId = activeUtenteId,
+                    DataCreazione = DateTime.Now
+                };
+                Db.Carrelli.Add(carrello);
+                await Db.SaveChangesAsync();
+            }
+
+            activeCarrelloId = carrello.Id;
+            carrelloProdotti = await Db.CarrelloProdotti
+                .AsNoTracking()
+                .Include(cp => cp.Prodotto)
+                .Include(cp => cp.Opzioni)
+                    .ThenInclude(opzione => opzione.OpzioneProdotto)
+                .Where(cp => cp.CarrelloId == activeCarrelloId)
+                .OrderBy(cp => cp.Prodotto!.Nome)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il caricamento del carrello.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task<Utente?> GetCurrentAuthenticatedUtenteAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var email = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        email = email.Trim().ToLowerInvariant();
+        var utente = await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+        if (utente is not null)
+        {
+            return utente;
+        }
+
+        var nome = email.Split('@')[0];
+        utente = new Utente
+        {
+            Nome = nome,
+            Cognome = string.Empty,
+            Email = email,
+            PasswordHash = string.Empty,
+            Ruolo = "Cliente",
+            DataRegistrazione = DateTime.Now
+        };
+
+        Db.Utenti.Add(utente);
+        await Db.SaveChangesAsync();
+
+        return utente;
+    }
+
+    private async Task ChangeQuantity(CarrelloProdottoEntity item, int delta)
+    {
+        if (item is null )
+        {
+            return;
+        }
+
+       var elementoDb = await Db.CarrelloProdotti
+                        .FirstOrDefaultAsync(cp=>cp.CarrelloId == item.CarrelloId && cp.ProdottoId == item.ProdottoId);
+
+        if (elementoDb is null)
+        {
+            return;
+        }
+        var nuovaQuantita = elementoDb.Quantita + delta;
+        if ( nuovaQuantita <1)
+        {
+             return;
+        }
+
+        elementoDb.Quantita = nuovaQuantita;
+
+        await Db.SaveChangesAsync();
+
+        await SyncOrdineInSospesoAsync();
+
+        await LoadCarrelloAsync();
+    }
+
+    private async Task RemoveItem(CarrelloProdottoEntity item)
+    {
+        errorMessage = null;
+        successMessage  = null;
+
+        if (item is null)
+        {
+            return;
+        }
+        var elementoDb = await Db.CarrelloProdotti
+                        .FirstOrDefaultAsync(cp=> cp.CarrelloId == item.CarrelloId && cp.ProdottoId == item.ProdottoId);
+        
+
+        if (elementoDb is null)
+        {
+            return;
+        }
+
+        Db.CarrelloProdotti.Remove(elementoDb);
+        await Db.SaveChangesAsync();
+        await SyncOrdineInSospesoAsync();
+
+        successMessage ="prodotto rimosso con successo ";
+        await LoadCarrelloAsync();
+    }
+
+    private async Task AddItemToCarrello()
+    {
+        try
+        {
+                
+                errorMessage = null;
+                successMessage = null;
+
+
+                if (activeCarrelloId == 0 )
+                {
+                    errorMessage = " carrello non inizializzato ";
+                    return;
+                }
+
+                if (selectedProdottoId == 0 || selectedQuantita < 1)
+                {
+                    errorMessage = " selezione un prodotto e una quantità valida";
+                    return;
+                }
+
+                var prodotto = await Db.Prodotti
+                        .FirstOrDefaultAsync(p => p.Id == selectedProdottoId);
+
+                if (prodotto is null)
+                {
+                    errorMessage = "Prodotto non valido.";
+                    return;
+                }
+
+                var esistente = await Db.CarrelloProdotti
+                    .FirstOrDefaultAsync(cp => cp.CarrelloId == activeCarrelloId &&
+                                        cp.ProdottoId == selectedProdottoId);
+
+                if (esistente is not null)
+                {
+                    esistente.Quantita += selectedQuantita;
+                    
+
+                    successMessage =$" quantita aggiornata per \"{prodotto.Nome}\".";
+                }
+                else
+                {
+                    var nuovoElemento = new CarrelloProdottoEntity
+                    {
+                        CarrelloId = activeCarrelloId,
+                        ProdottoId = selectedProdottoId,
+                        Quantita = selectedQuantita
+                    };
+
+                    Db.CarrelloProdotti.Add(nuovoElemento);
+
+                    successMessage =$"\"{prodotto.Nome}\"aggiunto al carrello.";
+                }
+
+                await Db.SaveChangesAsync();
+                await SyncOrdineInSospesoAsync();
+                selectedQuantita = 1;
+                await LoadCarrelloAsync();
+            }
+            catch (Exception ex)
+            {
+                    errorMessage = "errore durante l'aggiunta del prodotto al carrello ";
+                    Console.Error.WriteLine(ex);
+            }
+        }
+
+    private void ApriProdotto(Prodotto prodotto)
+    {
+        if (!prodotto.Personalizzabile)
+            {
+             errorMessage = " questo prodotto non è personalizzabile";
+            }
+            Navigation.NavigateTo($"/componi-kebab/{prodotto.Id}");
+
+    }
+
+    private async Task ProceedToPayment()
+    {
+        try
+        {
+            if (!carrelloProdotti.Any())
+            {
+                errorMessage = "Il carrello è vuoto. Aggiungi almeno un prodotto prima di procedere.";
+                return;
+            }
+
+            var ordineInSospeso = await Db.Ordini
+                .FirstOrDefaultAsync(o =>
+                    o.UtenteId == activeUtenteId &&
+                    o.Stato == StatoOrdineInSospeso);
+
+            if (ordineInSospeso is null)
+            {
+                errorMessage = "Non è stato possibile trovare l'ordine in sospeso.";
+                return;
+            }
+
+            ordineInSospeso.Stato = "Pagato";
+            ordineInSospeso.DataOrdine = DateTime.Now;
+            await Db.SaveChangesAsync();
+
+            var elementiCarrello = await Db.CarrelloProdotti
+                .Where(cp => cp.CarrelloId == activeCarrelloId)
+                .ToListAsync();
+
+            if (elementiCarrello.Any())
+            {
+                Db.CarrelloProdotti.RemoveRange(elementiCarrello);
+                await Db.SaveChangesAsync();
+            }
+
+            successMessage = "Ordine completato con successo. È ora visibile nella sezione Ordini.";
+            await LoadCarrelloAsync();
+            Navigation.NavigateTo("/ordini");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Errore durante il completamento dell'ordine.";
+            Console.Error.WriteLine(ex);
+        }
+    }
+}

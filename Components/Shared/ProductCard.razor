@@ -1,0 +1,130 @@
+<article class="product-card">
+
+    <div class="product-card__image">
+        @if (!string.IsNullOrWhiteSpace(ImmagineUrl))
+        {
+            @ImmagineUrl
+        }
+        else
+        {
+            <div class="product-card__image-placeholder">
+                Immagine non disponibile
+            </div>
+        }
+    </div>
+
+    <div class="product-card__content">
+
+        @if (!string.IsNullOrWhiteSpace(Badge))
+        {
+            <span class="product-card__badge">
+                @Badge
+            </span>
+        }
+
+        <h2 class="product-card__title">
+            @Titolo
+        </h2>
+
+        @if (!string.IsNullOrWhiteSpace(Sottotitolo))
+        {
+            <p class="product-card__subtitle">
+                @Sottotitolo
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Descrizione))
+        {
+            <p class="product-card__description">
+                @Descrizione
+            </p>
+        }
+
+        <p class="product-card__price">
+            @Prezzo
+        </p>
+
+        <button type="button"
+                class="product-card__button"
+                disabled="@PulsanteDisabilitatoCarrello"
+                @onclick="GestisciClickCarrello">
+            @TastoPulsanteCarrello
+        </button>
+
+        <button type="button"
+                class="product-card__button"
+                disabled="@PulsanteDisabilitatoDettagli"
+                @onclick="GestisciClickDettagli">
+            @TastoPulsanteDettagli
+        </button>
+
+    </div>
+
+</article>
+
+@code {
+    [Parameter]
+    public int IdProdotto { get; set; }
+
+    [Parameter]
+    public string? Titolo { get; set; }
+
+    [Parameter]
+    public string? Sottotitolo { get; set; }
+
+    [Parameter]
+    public string? Prezzo { get; set; }
+
+    [Parameter]
+    public string? Descrizione { get; set; }
+
+    [Parameter]
+    public string? ImmagineUrl { get; set; }
+
+    [Parameter]
+    public string? Badge { get; set; }
+
+    [Parameter]
+    public string TastoPulsanteDettagli { get; set; } = "Dettagli";
+
+    [Parameter]
+    public string TastoPulsanteCarrello { get; set; } = "Aggiungi al carrello";
+
+    [Parameter]
+    public bool PulsanteDisabilitatoCarrello { get; set; }
+
+    [Parameter]
+    public bool PulsanteDisabilitatoDettagli { get; set; }
+
+    [Parameter]
+    public EventCallback OnAggiungiAlCarrelloClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnDettagliClick { get; set; }
+
+    private async Task GestisciClickDettagli()
+    {
+        if (PulsanteDisabilitatoDettagli)
+        {
+            return;
+        }
+
+        if (OnDettagliClick.HasDelegate)
+        {
+            await OnDettagliClick.InvokeAsync();
+        }
+    }
+
+    private async Task GestisciClickCarrello()
+    {
+        if (PulsanteDisabilitatoCarrello)
+        {
+            return;
+        }
+
+        if (OnAggiungiAlCarrelloClick.HasDelegate)
+        {
+            await OnAggiungiAlCarrelloClick.InvokeAsync();
+        }
+    }
+}
