@@ -287,7 +287,7 @@
 
         [Required(ErrorMessage = "La password è obbligatoria.")]
         [StringLength(100, ErrorMessage = "La {0} deve essere almeno {2} e massimo {1} caratteri.", 
-            MinimumLength = 6)]
+            MinimumLength = 5)]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
 

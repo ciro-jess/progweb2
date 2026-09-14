@@ -7,11 +7,40 @@ public static class DbSeeder
     public static async Task SeedAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
     {
         await SeedUtentiAsync(db);
+        await EnsureAdminExistsAsync(db);
         await SeedProdottiAsync(db);
         await SeedOrdiniAsync(db);
         await SeedIdentityUsersAsync(db, userManager, roleManager);
         await SeedOpzioniProdottoAsync(db);
         await CollegaOpzioniAiProdottiAsync(db);
+    }
+
+    private static async Task EnsureAdminExistsAsync(ApplicationDbContext db)
+    {
+        var adminEmail = "admin.shop@gmail.com";
+        var admin = await db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == adminEmail.ToLower());
+
+        if (admin is null)
+        {
+            db.Utenti.Add(new Utente
+            {
+                Nome = "Admin",
+                Cognome = "Shop",
+                Email = adminEmail,
+                PasswordHash = "Admin",
+                Telefono = "3470001122",
+                Ruolo = "admin",
+                DataRegistrazione = DateTime.Now
+            });
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        if (!string.Equals(admin.Ruolo, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            admin.Ruolo = "admin";
+            await db.SaveChangesAsync();
+        }
     }
 
     private static async Task SeedUtentiAsync(ApplicationDbContext db)
@@ -127,128 +156,9 @@ public static class DbSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedProdottiAsync(ApplicationDbContext db)
-    {
-        if (await db.Prodotti.AnyAsync())
-            return;
 
-        var prodotti = new List<Prodotto>
-        {
-            new Prodotto
-            {
-                Nome = "Anello Oro Bianco",
-                Descrizione = "Anello elegante in oro bianco con pietra centrale.",
-                Categoria = "Gioiello",
-                Prezzo = 1299.00m,
-                QuantitaMagazzino = 12,
-                ImmagineUrl = "/images/anello-oro-bianco.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 1, 10, 0, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Collana in Argento",
-                Descrizione = "Collana sottile in argento con pendente a cuore.",
-                Categoria = "Gioiello",
-                Prezzo = 890.00m,
-                QuantitaMagazzino = 8,
-                ImmagineUrl = "/images/collana-argento.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 3, 11, 30, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Orologio da Polso",
-                Descrizione = "Orologio sportivo con cinturino in acciaio.",
-                Categoria = "Orologio",
-                Prezzo = 1590.00m,
-                QuantitaMagazzino = 6,
-                ImmagineUrl = "/images/orologio-polso.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 5, 9, 15, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Borsa in Pelle",
-                Descrizione = "Borsa elegante in pelle nera con zip laterale.",
-                Categoria = "Borsa",
-                Prezzo = 1190.00m,
-                QuantitaMagazzino = 7,
-                ImmagineUrl = "/images/borsa-pelle.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 6, 15, 0, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Bracciale in Oro",
-                Descrizione = "Bracciale in oro giallo con chiusura a moschettone.",
-                Categoria = "Gioiello",
-                Prezzo = 1499.00m,
-                QuantitaMagazzino = 10,
-                ImmagineUrl = "/images/bracciale-oro.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 8, 13, 45, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Anello Diamante",
-                Descrizione = "Anello con diamante sintetico e montatura in platino.",
-                Categoria = "Anello",
-                Prezzo = 2140.00m,
-                QuantitaMagazzino = 5,
-                ImmagineUrl = "/images/anello-diamante.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 10, 17, 20, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Cintura in Cuir",
-                Descrizione = "Cintura elegante in cuoio nero con fibbia in metallo.",
-                Categoria = "Accessori",
-                Prezzo = 650.00m,
-                QuantitaMagazzino = 14,
-                ImmagineUrl = "/images/cintura-cuir.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 12, 12, 10, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Orologio Elegante",
-                Descrizione = "Orologio classico con quadrante blu e cinturino in pelle.",
-                Categoria = "Orologio",
-                Prezzo = 1790.00m,
-                QuantitaMagazzino = 9,
-                ImmagineUrl = "/images/orologio-elegante.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 14, 16, 30, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Borsa Mini",
-                Descrizione = "Borsa mini per eventi e serate speciali.",
-                Categoria = "Borsa",
-                Prezzo = 980.00m,
-                QuantitaMagazzino = 11,
-                ImmagineUrl = "/images/borsa-mini.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 16, 18, 0, 0)
-            },
-            new Prodotto
-            {
-                Nome = "Cuffia in Metallo",
-                Descrizione = "Cuffia elegante con dettagli in metallo satinato.",
-                Categoria = "Gioiello",
-                Prezzo = 740.00m,
-                QuantitaMagazzino = 13,
-                ImmagineUrl = "/images/cuffia-metallo.jpg",
-                Disponibile = true,
-                DataInserimento = new DateTime(2025, 5, 18, 8, 40, 0)
-            }
-        };
 
-        db.Prodotti.AddRange(prodotti);
-        await db.SaveChangesAsync();
-    }
+    
 
     private static async Task SeedIdentityUsersAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
     {
@@ -306,6 +216,63 @@ public static class DbSeeder
         }
     }
 
+    private static async Task SeedProdottiAsync(ApplicationDbContext db)
+    {
+        if (await db.Prodotti.AnyAsync())
+            return;
+
+        var prodotti = new[]
+        {
+            new Prodotto
+            {
+                Nome = "Kebab Classico",
+                Categoria = "Kebab",
+                Prezzo = 8.50m,
+                QuantitaMagazzino = 20,
+                Disponibile = true,
+                Personalizzabile = true,
+                DataInserimento = DateTime.Now,
+                Descrizione = "Kebab classico con carne, insalata e salsa"
+            },
+            new Prodotto
+            {
+                Nome = "Kebab Vegano",
+                Categoria = "Kebab",
+                Prezzo = 9.00m,
+                QuantitaMagazzino = 15,
+                Disponibile = true,
+                Personalizzabile = true,
+                DataInserimento = DateTime.Now,
+                Descrizione = "Kebab vegano con falafel e verdure"
+            },
+            new Prodotto
+            {
+                Nome = "Patatine Fritte",
+                Categoria = "Extra",
+                Prezzo = 3.50m,
+                QuantitaMagazzino = 25,
+                Disponibile = true,
+                Personalizzabile = false,
+                DataInserimento = DateTime.Now,
+                Descrizione = "Patatine croccanti da accompagnare"
+            },
+            new Prodotto
+            {
+                Nome = "Bibita",
+                Categoria = "Bevande",
+                Prezzo = 2.50m,
+                QuantitaMagazzino = 30,
+                Disponibile = true,
+                Personalizzabile = false,
+                DataInserimento = DateTime.Now,
+                Descrizione = "Bibita fresca da 500ml"
+            }
+        };
+
+        db.Prodotti.AddRange(prodotti);
+        await db.SaveChangesAsync();
+    }
+
     private static async Task SeedOrdiniAsync(ApplicationDbContext db)
     {
         if (await db.Ordini.AnyAsync())
@@ -313,6 +280,9 @@ public static class DbSeeder
 
         var utenti = await db.Utenti.OrderBy(u => u.Id).ToListAsync();
         var prodotti = await db.Prodotti.OrderBy(p => p.Id).ToListAsync();
+
+        if (prodotti.Count == 0)
+            return;
 
         var ordini = new List<Ordine>();
         var baseDate = new DateTime(2026, 6, 1, 12, 0, 0);
