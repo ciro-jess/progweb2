@@ -310,7 +310,7 @@ public static class DbSeeder
                 Nome = " birra Heineken",
                 Categoria = "Bevande",
                 Prezzo = 2.50m,
-                QuantitaMagazzino = 30,
+                QuantitaMagazzino = 50,
                 Disponibile = true,
                 Personalizzabile = false,
                 DataInserimento = DateTime.Now,
@@ -448,25 +448,25 @@ public static class DbSeeder
             new
             {
                 Nome = "Salsa yogurt",
-                Categoria = "Salse",
+                Categoria = "Salsa",
                 Sovrapprezzo = 0m
             },
             new
             {
                 Nome = "Salsa piccante",
-                Categoria = "Salse",
+                Categoria = "Salsa",
                 Sovrapprezzo = 0m
             },
             new
             {
                 Nome = "maionese",
-                Categoria = "Salse",
+                Categoria = "Salsa",
                 Sovrapprezzo = 0m
             },
             new
             {
-                Nome = "  salsa barbecue ",
-                Categoria = "Salse",
+                Nome = "salsa barbecue ",
+                Categoria = "Salsa",
                 Sovrapprezzo = 0m
             },
             new
