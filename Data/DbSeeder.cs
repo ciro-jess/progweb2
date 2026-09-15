@@ -174,7 +174,12 @@ public static class DbSeeder
         var utenti = await db.Utenti.AsNoTracking().ToListAsync();
         foreach (var utente in utenti)
         {
-            var email = utente.Email.Trim();
+            var email = (utente.Email ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                continue;
+            }
+
             var identityUser = await userManager.FindByEmailAsync(email);
             if (identityUser == null)
             {
@@ -182,23 +187,39 @@ public static class DbSeeder
                 {
                     UserName = email,
                     Email = email,
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    Nome = utente.Nome,
+                    Cognome = utente.Cognome
                 };
 
-                var rawPassword = string.IsNullOrWhiteSpace(utente.PasswordHash)
-                    ? "Password1!"
-                    : utente.PasswordHash;
-
+                var rawPassword = GetSeedPasswordForUser(utente);
                 var createResult = await userManager.CreateAsync(identityUser, rawPassword);
+
                 if (!createResult.Succeeded)
                 {
-                    rawPassword = "Password1!";
-                    createResult = await userManager.CreateAsync(identityUser, rawPassword);
+                    var fallbackPassword = "Password1!";
+                    createResult = await userManager.CreateAsync(identityUser, fallbackPassword);
                 }
 
                 if (!createResult.Succeeded)
                 {
                     throw new InvalidOperationException($"Impossibile creare l'utente Identity '{email}': {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+                }
+            }
+            else
+            {
+                var needsProfileSync = !string.Equals(identityUser.UserName, email, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(identityUser.Email, email, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(identityUser.Nome, utente.Nome, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(identityUser.Cognome, utente.Cognome, StringComparison.OrdinalIgnoreCase);
+
+                if (needsProfileSync)
+                {
+                    identityUser.UserName = email;
+                    identityUser.Email = email;
+                    identityUser.Nome = utente.Nome;
+                    identityUser.Cognome = utente.Cognome;
+                    await userManager.UpdateAsync(identityUser);
                 }
             }
 
@@ -214,6 +235,43 @@ public static class DbSeeder
                 await userManager.AddToRoleAsync(identityUser, ruolo);
             }
         }
+    }
+
+    private static string GetSeedPasswordForUser(Utente utente)
+    {
+        var email = (utente.Email ?? string.Empty).Trim();
+
+        if (string.Equals(email, "admin.shop@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "Admin";
+
+        if (string.Equals(email, "ciro.colonna@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "1Angelica";
+
+        if (string.Equals(email, "marta.bianchi@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "Marta2025";
+
+        if (string.Equals(email, "luca.rossi@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "LucaRossi";
+
+        if (string.Equals(email, "sara.verdi@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "SaraV2025";
+
+        if (string.Equals(email, "giovanni.neri@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "GiovaNeri";
+
+        if (string.Equals(email, "elena.gallo@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "ElenaG";
+
+        if (string.Equals(email, "paolo.marini@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "PMarini99";
+
+        if (string.Equals(email, "chiara.lombardi@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "ChiaraL";
+
+        if (string.Equals(email, "marco.deluca@gmail.com", StringComparison.OrdinalIgnoreCase))
+            return "MarcoDL";
+
+        return string.IsNullOrWhiteSpace(utente.PasswordHash) ? "Password1!" : utente.PasswordHash;
     }
 
     private static async Task SeedProdottiAsync(ApplicationDbContext db)
