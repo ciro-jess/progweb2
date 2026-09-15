@@ -140,16 +140,7 @@ public static class DbSeeder
                 Ruolo = "cliente",
                 DataRegistrazione = new DateTime(2025, 4, 1, 13, 40, 0)
             },
-            new Utente
-            {
-                Nome = "Admin",
-                Cognome = "Shop",
-                Email = "admin.shop@gmail.com",
-                PasswordHash = "Admin",
-                Telefono = "3470001122",
-                Ruolo = "admin",
-                DataRegistrazione = new DateTime(2025, 4, 12, 7, 50, 0)
-            }
+          
         };
 
         db.Utenti.AddRange(utenti);
