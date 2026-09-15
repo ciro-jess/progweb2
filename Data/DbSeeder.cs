@@ -307,7 +307,7 @@ public static class DbSeeder
             },
             new Prodotto
             {
-                Nome = "Bibita",
+                Nome = " birra Heineken",
                 Categoria = "Bevande",
                 Prezzo = 2.50m,
                 QuantitaMagazzino = 30,
@@ -430,7 +430,7 @@ public static class DbSeeder
             new
             {
                 Nome = " Cipolla ",
-                Categoria = "Verdura ",
+                Categoria = "verdura",
                 Sovrapprezzo = 0m
             },
             new
@@ -447,26 +447,26 @@ public static class DbSeeder
             },
             new
             {
-                Nome = " Salsa yogurt ",
-                Categoria = "salse",
+                Nome = "Salsa yogurt",
+                Categoria = "Salse",
                 Sovrapprezzo = 0m
             },
             new
             {
-                Nome = " Salsa piccante ",
-                Categoria = "salse",
+                Nome = "Salsa piccante",
+                Categoria = "Salse",
                 Sovrapprezzo = 0m
             },
             new
             {
-                Nome = " maionese  ",
-                Categoria = "salse",
+                Nome = "maionese",
+                Categoria = "Salse",
                 Sovrapprezzo = 0m
             },
             new
             {
                 Nome = "  salsa barbecue ",
-                Categoria = "salse",
+                Categoria = "Salse",
                 Sovrapprezzo = 0m
             },
             new
