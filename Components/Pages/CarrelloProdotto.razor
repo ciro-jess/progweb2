@@ -205,28 +205,28 @@
 private async Task SyncOrdineInSospesoAsync()
 {
     try
-    {
+    {     //caricamento degli elementi del carrello 
         var itemsCarrello = await Db.CarrelloProdotti
-            .Include(cp => cp.Prodotto)
-            .Include(cp => cp.Opzioni)
-                .ThenInclude(opzione => opzione.OpzioneProdotto)
-            .Where(cp => cp.CarrelloId == activeCarrelloId)
+            .Include(cp => cp.Prodotto)  // caricamento del prodotto, carica il prodotto associato ad ogni riga del carrello 
+            .Include(cp => cp.Opzioni)  //carica la collezione delle opzioni selezionate per ogni riga del carrello 
+                .ThenInclude(opzione => opzione.OpzioneProdotto)  // il metodo carica anche l’entità completa OpzioneProdotto legata a ogni associazione.
+            .Where(cp => cp.CarrelloId == activeCarrelloId)  // contiene l'identificativo del carrello aperto dal cliente  
             .ToListAsync();
-
-        var ordineInSospeso = await Db.Ordini
-            .FirstOrDefaultAsync(o =>
-                o.UtenteId == activeUtenteId &&
-                o.Stato == StatoOrdineInSospeso);
-
-        if (!itemsCarrello.Any())
-        {
-            if (ordineInSospeso is not null)
+            // ricerca dell'ordine in sospeso 
+        var ordineInSospeso = await Db.Ordini     
+            .FirstOrDefaultAsync(o =>   // restituisce il primo ordine che soddisfa la condizione , se è null non esiste nessu ordine 
+                o.UtenteId == activeUtenteId &&    // l'ordine deve appartenere ad un utente attivo 
+                o.Stato == StatoOrdineInSospeso);   // l'ordine deve avere lo stato in sospeso 
+            // controllo del carrello vuoto 
+        if (!itemsCarrello.Any())      // Se il carrello non contiene alcun elemento.
+        {         // elimina l'ordine se il carrello è vuoto 
+            if (ordineInSospeso is not null)       
             {
                 var dettagliOrdine = await Db.OrdiniProdotti
-                    .Where(op => op.OrdineId == ordineInSospeso.Id)
+                    .Where(op => op.OrdineId == ordineInSospeso.Id)    //Recupera tutte le righe che appartengono a questo specifico ordine.
                     .ToListAsync();
 
-                if (dettagliOrdine.Any())
+                if (dettagliOrdine.Any())     //Se esiste almeno una riga, RemoveRange contrassegna tutte le righe per l’eliminazione.
                 {
                     Db.OrdiniProdotti.RemoveRange(dettagliOrdine);
                 }
@@ -237,57 +237,58 @@ private async Task SyncOrdineInSospesoAsync()
 
             return;
         }
-
+                        //calcola il totale del carrello.
         var totaleCarrello = itemsCarrello.Sum(item =>
             item.Prodotto != null
-                ? item.Prodotto.Prezzo * item.Quantita
+                ? item.Prodotto.Prezzo * item.Quantita    // operatore ternario 
                 : 0m);
-
+            // creazione ordine se non esiste 
         if (ordineInSospeso is null)
         {
-            ordineInSospeso = new global::OnlineShop.Data.Entities.Ordine
+            ordineInSospeso = new global::OnlineShop.Data.Entities.Ordine  //Indica esattamente l’entità Ordine contenuta nel namespace delle entità. 
+            // Serve a evitare conflitti con una pagina o una classe che si chiama Ordine.
             {
-                UtenteId = activeUtenteId,
-                Totale = totaleCarrello,
-                Stato = StatoOrdineInSospeso,
+                UtenteId = activeUtenteId,  //Collega l’ordine all’utente autenticato.
+                Totale = totaleCarrello,     //salva il totoale 
+                Stato = StatoOrdineInSospeso,    // assoscia lo stato ordine "in sospeso "
                 DataOrdine = DateTime.Now
             };
 
             Db.Ordini.Add(ordineInSospeso);
             await Db.SaveChangesAsync();
         }
-        else
+        else   // se l'ordine esiste , aggiorna quello esistente 
         {
             ordineInSospeso.Totale = totaleCarrello;
             ordineInSospeso.DataOrdine = DateTime.Now;
             ordineInSospeso.Stato = StatoOrdineInSospeso;
             await Db.SaveChangesAsync();
         }
-
+            // recupero delle righe gia presenti 
         var dettagliEsistenti = await Db.OrdiniProdotti
             .Where(op => op.OrdineId == ordineInSospeso.Id)
             .ToListAsync();
 
-        if (dettagliEsistenti.Any())
+        if (dettagliEsistenti.Any())   // eliminazione delle vecchie righe 
         {
             Db.OrdiniProdotti.RemoveRange(dettagliEsistenti);
             await Db.SaveChangesAsync();
         }
-
+         // esamina ogni riga del carrello
         foreach (var item in itemsCarrello)
         {
-            if (item.Prodotto is null)
+            if (item.Prodotto is null)     // controllo che il prodotto si stato caricato 
             {
                 continue;
             }
 
             Db.OrdiniProdotti.Add(new OrdineProdotto
             {
-                OrdineId = ordineInSospeso.Id,
-                ProdottoId = item.ProdottoId,
-                Quantita = item.Quantita,
-                PrezzoUnitario = item.Prodotto.Prezzo,
-                OpzioniSelezionate = item.Opzioni.Any()
+                OrdineId = ordineInSospeso.Id,   // collega la riga all'ordine in sospeso 
+                ProdottoId = item.ProdottoId,    // indica quale prodotto è stato ordinato
+                Quantita = item.Quantita,       // indica la quantita 
+                PrezzoUnitario = item.Prodotto.Prezzo,   // copia il prezzo attuale 
+                OpzioniSelezionate = item.Opzioni.Any()   //Verifica se la riga del carrello possiede almeno un’opzione
                     ? string.Join(", ", item.Opzioni.Select(opzione => opzione.OpzioneProdotto.Nome.Trim()))
                     : null
             });
@@ -309,14 +310,19 @@ private async Task SyncOrdineInSospesoAsync()
         {
             isLoading = true;
             errorMessage = null;
-
-            prodotti = await Db.Prodotti.AsNoTracking().OrderBy(p => p.Nome).ToListAsync();
-            if (selectedProdottoId == 0)
+                    //caricamento prodotti
+            prodotti = await Db.Prodotti  
+                .AsNoTracking()   // gli oggetti caricati non deveno essere monitorati per future modifiche 
+                .OrderBy(p => p.Nome)
+                .ToListAsync();
+                // selezione  autonoma del primo prodotto  
+            if (selectedProdottoId == 0)   //contiene l’identificativo del prodotto selezionato nel menu a discesa.
             {
-                selectedProdottoId = prodotti.FirstOrDefault()?.Id ?? 0;
+                selectedProdottoId = prodotti
+                    .FirstOrDefault()?.Id ?? 0;   // se esiste almeno un prodotto selezione il suo identificativo , altrimento 0
             }
 
-            var utente = await GetCurrentAuthenticatedUtenteAsync();
+            var utente = await GetCurrentAuthenticatedUtenteAsync();  // richiama il metodot del recupero dell'utente autenticato 
 
             if (utente is null)
             {
@@ -324,16 +330,21 @@ private async Task SyncOrdineInSospesoAsync()
                 return;
             }
 
-            activeUtenteId = utente.Id;
-
+            activeUtenteId = utente.Id;  //Memorizzazione dell’utente attivo 
+                // query che rappresenta tutti i carrelli appartenenti all’utente corrente.
             var carrelloQuery = Db.Carrelli
                 .Where(c => c.UtenteId == activeUtenteId);
 
-            var carrello = CarrelloId.HasValue
+            var carrello = CarrelloId.HasValue 
+            // La ricerca contiene due filtri: il carrello deve appartenere all’utente;
+            // il carrello deve avere l’identificativo richiesto.
                 ? await carrelloQuery.FirstOrDefaultAsync(c => c.Id == CarrelloId.Value)
+                // prende tutti i carreli dell'utente , li ordina per identificativo  descrescente
                 : await carrelloQuery.OrderByDescending(c => c.Id).FirstOrDefaultAsync();
-
-            if (carrello is null)
+                // carrello non trovato 
+            if (carrello is null) //Il risultato della query può essere null in due situazioni 
+            // l’utente non possiede alcun carrello; 
+            // è stato richiesto un CarrelloId che non esiste o non appartiene all’utente.
             {
                 carrello = new Carrello
                 {
@@ -343,7 +354,7 @@ private async Task SyncOrdineInSospesoAsync()
                 Db.Carrelli.Add(carrello);
                 await Db.SaveChangesAsync();
             }
-
+              // identifiacazione carrello attivo 
             activeCarrelloId = carrello.Id;
             carrelloProdotti = await Db.CarrelloProdotti
                 .AsNoTracking()
@@ -414,7 +425,7 @@ private async Task SyncOrdineInSospesoAsync()
         {
             return;
         }
-        var nuovaQuantita = elementoDb.Quantita + delta;
+        var nuovaQuantita = elementoDb.Quantita + delta;   // delta è la variazione da applicare alla quantita attuale 
         if ( nuovaQuantita <1)
         {
              return;

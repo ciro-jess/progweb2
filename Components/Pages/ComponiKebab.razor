@@ -174,6 +174,7 @@ else
     private bool isLoading = true;
     private string? errorMessage;
 
+// Questa proprietà prende tutte le opzioni disponibili e restituisce soltanto pane, carne, verdure, salse ed extra scelti dall’utente.
     private IEnumerable<OpzioneProdotto> OpzioniSelezionate =>
         opzioni.Where(o =>
             o.Id == model.PaneSelezionatoId ||
@@ -265,7 +266,7 @@ private async Task AggiungiComposizioneAlCarrelloAsync()
         if (model.PaneSelezionatoId is null)
         {
             errorMessage = "Seleziona il tipo di pane.";
-            return;
+            
         }
 
         if (model.CarneSelezionataId is null)

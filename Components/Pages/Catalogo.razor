@@ -65,11 +65,11 @@
 @code {
     private List<Prodotto> prodotti = new();
     
-    private List<global::OnlineShop.Data.Entities.Ordine> ordini = new();
-    private global::OnlineShop.Data.Entities.Ordine editingOrder = new();
+    private List<global::OnlineShop.Data.Entities.Ordine> ordini = new();   // è una lista che puo contenere esclusivamente oggetti dell'entià ordine
+
     
     [CascadingParameter]
-    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;  // proprietà  privata che blazor valorizza automaticamnte e che permette di recuperare in modo asincrono l'untete
 
     private bool isLoading = true;
     private string? errorMessage;
@@ -206,23 +206,23 @@ private async Task AddItemToCarrello(int prodottoId)
 
     private async Task<Utente?> GetCurrentAuthenticatedUtenteAsync()
     {
-        var authState = await AuthenticationStateTask;
-        var user = authState.User;
-        var email = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;
+        var authState = await AuthenticationStateTask;  // verifica stato di autenticazione in maniera asincrona 
+        var user = authState.User;   // verifica utente autenticato 
+        var email = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;   // recupero dell'indirizzo e-mail  puo usare uno dei due valori , in base a quello che che trova , se uno è null , usa l'altro 
 
-        if (string.IsNullOrWhiteSpace(email))
+        if (string.IsNullOrWhiteSpace(email)) // controlli su 3 punti di vista ,Se l’e-mail non esiste, è vuota oppure contiene solamente spazi, non è possibile identificare l’utente.
         {
-            return null;
+            return null;   //Termina immediatamente il metodo e restituisci l’assenza di un utente.
         }
 
-        email = email.Trim().ToLowerInvariant();
-        var utente = await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
-        if (utente is not null)
+        email = email.Trim().ToLowerInvariant();  //Se l’e-mail è presente, il metodo continua, elimina gli spazi ,converte tutte le lettere in minuscolo in modo indipendente dalla cultura del sistema.
+        var utente = await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email);   //query naella tabella applicativa , firstordefaultAsync signafiac : il primo utente che soddisfa le condizioni
+        if (utente is not null)    // verifica se la condizione ha trovato un record
         {
             return utente;
         }
 
-        var nome = email.Split('@')[0];
+        var nome = email.Split('@')[0];    // se nessun utente viene trovato , il metodo continua e viene diviso in 1 array con 2 elementi
         utente = new Utente
         {
             Nome = nome,
@@ -278,11 +278,11 @@ private async Task AddItemToCarrello(int prodottoId)
         {
             isLoading = true;
             errorMessage = null;
-            ordini = await Db.Ordini
-                .Include(o => o.Utente)
+            ordini = await Db.Ordini  // assegnazione alla lista ordini 
+                .Include(o => o.Utente)   // caria un'entita  collegata 
                 .AsNoTracking()
                 .OrderByDescending(o => o.DataOrdine)
-                .ToListAsync();
+                .ToListAsync();     // creo una lista 
         }
         catch (Exception ex)
         {
