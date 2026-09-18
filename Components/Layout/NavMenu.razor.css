@@ -17,13 +17,13 @@
 
 .top-row {
     min-height: 3.5rem;
-    background-color: #29231f;
+    background-color: #1f2933;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .navbar-brand {
     font-size: 1.3rem;
-    color: #fff8ed;
+    color: #f7f3ea;
     letter-spacing: 0.02em;
 }
 
@@ -63,7 +63,7 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: #d8cbbd;
+        color: #d5e2df;
         background: none;
         border: none;
         border-radius: 8px;
@@ -75,12 +75,12 @@
     }
 
 .nav-item ::deep a.active {
-    background-color: #c9362b;
+    background-color: #e4573d;
     color: white;
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(229, 166, 41, 0.18);
+    background-color: rgba(15, 118, 110, 0.5);
     color: white;
 }
 

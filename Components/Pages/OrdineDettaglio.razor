@@ -26,12 +26,30 @@
         <header class="ordine-header">
             <div>
                 <p class="ordine-kicker">Dettaglio ordine</p>
-                <h1 class="ordine-title">Ordine #@ordine.Id</h1>
+                <h1 class="ordine-title">Ordine @ordine.CodiceOrdine</h1>
             </div>
             <button class="btn ordine-back-btn" @onclick="TornaIndietro">
                 Torna agli ordini
             </button>
         </header>
+
+        @if (ordine.Stato == "Annullato")
+        {
+            <div class="alert alert-danger mb-4">Questo ordine è stato annullato.</div>
+        }
+        else
+        {
+            <section class="ordine-status" aria-label="Stato consegna ordine">
+                @for (var index = 0; index < StatiConsegna.Length; index++)
+                {
+                    var stato = StatiConsegna[index];
+                    <div class="ordine-status__step @(IsStatoCompletato(index) ? "is-complete" : string.Empty) @(ordine.Stato == stato ? "is-current" : string.Empty)">
+                        <span class="ordine-status__dot">@(IsStatoCompletato(index) ? "✓" : index + 1)</span>
+                        <span>@stato</span>
+                    </div>
+                }
+            </section>
+        }
 
         <div class="ordine-grid">
             <section class="ordine-card">
@@ -84,6 +102,11 @@
                         <p><strong>Email:</strong> <span>@ordine.Utente?.Email</span></p>
                         
                         <p><strong>Data:</strong> <span>@ordine.DataOrdine.ToString("dd/MM/yyyy HH:mm")</span></p>
+                        <p><strong>Ritiro:</strong> <span>@ordine.ModalitaRitiro</span></p>
+                        @if (!string.IsNullOrWhiteSpace(ordine.NoteOrdine))
+                        {
+                            <p><strong>Note:</strong> <span>@ordine.NoteOrdine</span></p>
+                        }
                         <p>
                             <strong>Stato:</strong>
                             <span class="ordine-badge ordine-badge--@GetStatoBadgeClass(ordine.Stato)">@ordine.Stato</span>
@@ -121,16 +144,32 @@
 
     private OrdineEntity? ordine;
     private bool isLoading = true;
+    private static readonly string[] StatiConsegna =
+    {
+        "In Sospeso", "Pagato", "In Preparazione", "Pronto al banco", "Spedito", "Consegnato"
+    };
 
     protected override async Task OnParametersSetAsync()
     {
         isLoading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var currentUser = authState.User;
         ordine = await Db.Ordini
             .Include(o => o.Utente)
             .Include(o => o.OrdineProdotti)
                 .ThenInclude(op => op.Prodotto)
             .Include(o => o.Pagamento)
             .FirstOrDefaultAsync(o => o.Id == OrdineId);
+
+        if (ordine is not null && !currentUser.IsInRole("Admin"))
+        {
+            var email = currentUser.FindFirstValue(ClaimTypes.Email) ?? currentUser.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(email)
+                || !string.Equals(ordine.Utente?.Email, email, StringComparison.OrdinalIgnoreCase))
+            {
+                ordine = null;
+            }
+        }
 
         isLoading = false;
     }
@@ -148,11 +187,17 @@
         return stato switch
         {
             "Pagato" => "success",
-            "Spedito" => "info",
+            "Spedito" or "In Preparazione" or "Pronto al banco" => "info",
             "Consegnato" => "primary",
             "Annullato" => "danger",
             "In Sospeso" => "warning",
             _ => "secondary"
         };
+    }
+
+    private bool IsStatoCompletato(int index)
+    {
+        var currentIndex = Array.IndexOf(StatiConsegna, ordine?.Stato);
+        return currentIndex >= index;
     }
 }

@@ -9,14 +9,15 @@
 
 <PageTitle>Accedi</PageTitle>
 
-<div> 
-    <div>
-        <h1>Accedi</h1>
-        <hr />
+<div class="account-shell">
+    <section class="account-panel">
+        <div class="account-kicker">Bentornato</div>
+        <h1>Accedi al tuo account</h1>
+        <p class="account-lead">Riprendi da dove avevi lasciato il tuo ordine.</p>
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div>
+            <div class="alert alert-info" role="status">
                 @errorMessage
             </div>
         }
@@ -53,7 +54,7 @@
             </div>
 
         </EditForm>
-</div>
+    </section>
 </div>
 
 
@@ -69,12 +70,20 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
+    [SupplyParameterFromQuery]
+    private bool Registered { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
             // Pulisce il cookie esterno per un login pulito
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+
+        if (Registered)
+        {
+            errorMessage = "Account creato. Accedi per continuare.";
         }
     }
 
@@ -85,12 +94,20 @@
         if (result.Succeeded)
         {
             logger.LogInformation("Utente loggato.");
-            NavigationManager.NavigateTo(ReturnUrl ?? "/", forceLoad: true);
+            NavigationManager.NavigateTo(GetSafeReturnUrl(), forceLoad: true);
         }
         else
         {
             errorMessage = "Errore: email o password non validi.";
         }
+    }
+
+    private string GetSafeReturnUrl()
+    {
+        return !string.IsNullOrWhiteSpace(ReturnUrl) && Uri.TryCreate(ReturnUrl, UriKind.Relative, out var uri)
+            && !ReturnUrl.StartsWith("//", StringComparison.Ordinal)
+            ? uri.ToString()
+            : "/catalogo";
     }
 
     private sealed class InputModel

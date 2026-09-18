@@ -8,6 +8,7 @@
 @rendermode InteractiveServer
 @inject ApplicationDbContext Db
 @inject NavigationManager Navigation
+@inject IOrderNotificationService Notifications
 
 <PageTitle>Ordini | Ottava Meraviglia</PageTitle>
 
@@ -40,7 +41,7 @@
                         PageSize="10"
                         EmptyText="Nessun ordine trovato">
             <Columns>
-                <RadzenDataGridColumn TItem="OrdineEntity" Property="Id" Title="ID" />
+                <RadzenDataGridColumn TItem="OrdineEntity" Property="CodiceOrdine" Title="Codice ordine" />
                 <RadzenDataGridColumn TItem="OrdineEntity" Title="Utente">
                     <Template Context="ordine">
                         @(ordine.Utente?.NomeCompleto ?? "Utente sconosciuto")
@@ -53,22 +54,22 @@
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrdineEntity" Property="Stato" Title="Stato">
                     <Template Context="ordine">
-                        @if (ordine.Stato == "In Sospeso")
-                        {
-                            <span class="badge bg-warning text-dark">In sospeso</span>
-                        }
-                        else if (ordine.Stato == "Pagato")
-                        {
-                            <span class="badge bg-success">Pagato</span>
-                        }
-                        else if (ordine.Stato == "Annullato")
-                        {
-                            <span class="badge bg-danger">Annullato</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-secondary">@ordine.Stato</span>
-                        }
+                        <span class="badge @GetStatoClass(ordine.Stato)">@ordine.Stato</span>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrdineEntity" Title="Gestione" Sortable="false" Filterable="false" Width="280px">
+                    <Template Context="ordine">
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select form-select-sm" value="@ordine.Stato" @onchange="eventArgs => AggiornaStato(ordine, eventArgs.Value?.ToString())">
+                                @foreach (var stato in StatiOrdine)
+                                {
+                                    <option value="@stato" disabled="@(!PuoiImpostareStato(ordine, stato))">@stato</option>
+                                }
+                            </select>
+                            <button class="btn btn-sm btn-outline-danger" disabled="@(ordine.Stato is "Annullato" or "Consegnato")" @onclick="() => AnnullaOrdine(ordine)">
+                                Annulla
+                            </button>
+                        </div>
                     </Template>
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrdineEntity" Property="DataOrdine" Title="Data ordine">
@@ -93,6 +94,10 @@
     private global::OnlineShop.Data.Entities.Ordine editingOrder = new();
     private bool isLoading = true;
     private string? errorMessage;
+    private static readonly string[] StatiOrdine =
+    {
+        "In Sospeso", "Pagato", "In Preparazione", "Pronto al banco", "Spedito", "Consegnato", "Annullato"
+    };
     
     
     [CascadingParameter]
@@ -178,7 +183,6 @@
             errorMessage = null;
             ordini = await Db.Ordini
                 .Include(o => o.Utente)
-                .AsNoTracking()
                 .OrderByDescending(o => o.DataOrdine)
                 .ToListAsync();
         }
@@ -198,5 +202,70 @@
     private void VisualizzaDettagli(int ordineId)
     {
         Navigation.NavigateTo($"/ordine/{ordineId}");
+    }
+
+    private async Task AggiornaStato(OrdineEntity ordine, string? stato)
+    {
+        if (string.IsNullOrWhiteSpace(stato) || !StatiOrdine.Contains(stato))
+        {
+            return;
+        }
+
+        if (string.Equals(ordine.Stato, stato, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!PuoiImpostareStato(ordine, stato))
+        {
+            errorMessage = "Non puoi riportare un ordine a uno stato precedente o modificare un ordine chiuso.";
+            return;
+        }
+
+        ordine.Stato = stato;
+        await Db.SaveChangesAsync();
+        await Notifications.SendOrderStatusAsync(ordine);
+    }
+
+    private async Task AnnullaOrdine(OrdineEntity ordine)
+    {
+        if (ordine.Stato is "Annullato" or "Consegnato")
+        {
+            return;
+        }
+
+        ordine.Stato = "Annullato";
+        await Db.SaveChangesAsync();
+        await Notifications.SendOrderStatusAsync(ordine);
+    }
+
+    private static string GetStatoClass(string stato) => stato switch
+    {
+        "Pagato" or "Consegnato" => "bg-success",
+        "In Preparazione" or "Pronto al banco" => "bg-info text-dark",
+        "Annullato" => "bg-danger",
+        _ => "bg-warning text-dark"
+    };
+
+    private static bool PuoiImpostareStato(OrdineEntity ordine, string stato)
+    {
+        if (ordine.Stato == stato)
+        {
+            return true;
+        }
+
+        if (ordine.Stato is "Annullato" or "Consegnato")
+        {
+            return false;
+        }
+
+        if (stato == "Annullato")
+        {
+            return true;
+        }
+
+        var currentIndex = Array.IndexOf(StatiOrdine, ordine.Stato);
+        var requestedIndex = Array.IndexOf(StatiOrdine, stato);
+        return currentIndex >= 0 && requestedIndex >= currentIndex;
     }
 }

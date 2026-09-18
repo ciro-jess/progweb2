@@ -3,12 +3,13 @@
     <div class="product-card__image">
         @if (!string.IsNullOrWhiteSpace(ImmagineUrl))
         {
-            @ImmagineUrl
+            <img src="@ImmagineUrl" alt="Foto di @Titolo" loading="lazy" />
         }
         else
         {
             <div class="product-card__image-placeholder">
-                Immagine non disponibile
+                <span aria-hidden="true">Foto</span>
+                <small>Immagine non disponibile</small>
             </div>
         }
     </div>

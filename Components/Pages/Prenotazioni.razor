@@ -1,0 +1,220 @@
+@page "/prenotazioni"
+@attribute [Authorize(Roles = "Cliente")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IOrderNotificationService Notifications
+
+<PageTitle>Prenota un tavolo | Ottava Meraviglia</PageTitle>
+
+<div class="prenotazioni-page">
+    <header class="prenotazioni-hero">
+        <p>Vivi l'esperienza in negozio</p>
+        <h1>Prenota il tuo tavolo</h1>
+        <span>Scegli giorno e orario. Ti confermeremo la disponibilità dalla gestione del locale.</span>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <EditForm Model="form" OnValidSubmit="SalvaPrenotazione">
+        <DataAnnotationsValidator />
+        <section class="prenotazione-form">
+            <div class="prenotazione-form__field">
+                <label for="data-prenotazione">Data e ora</label>
+                <InputDate id="data-prenotazione" @bind-Value="form.DataPrenotazione" Type="InputDateType.DateTimeLocal" class="form-control" />
+            </div>
+            <div class="prenotazione-form__field">
+                <label for="numero-persone">Numero persone</label>
+                <InputNumber id="numero-persone" @bind-Value="form.NumeroPersone" class="form-control" min="1" max="20" />
+            </div>
+            <div class="prenotazione-form__field prenotazione-form__field--full">
+                <label for="note-prenotazione">Note</label>
+                <InputTextArea id="note-prenotazione" @bind-Value="form.Note" class="form-control" rows="4" maxlength="500" placeholder="Es. preferenza per una zona tranquilla" />
+            </div>
+            <div class="prenotazione-form__actions">
+                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                    @(isSaving ? "Invio in corso..." : "Invia richiesta")
+                </button>
+            </div>
+        </section>
+    </EditForm>
+
+    <section class="prenotazioni-lista">
+        <div class="prenotazioni-lista__heading">
+            <div>
+                <p>Le tue richieste</p>
+                <h2>Prenotazioni recenti</h2>
+            </div>
+        </div>
+
+        @if (prenotazioni.Count == 0)
+        {
+            <p class="prenotazioni-empty">Non hai ancora inviato richieste di prenotazione.</p>
+        }
+        else
+        {
+            <div class="prenotazioni-grid">
+                @foreach (var prenotazione in prenotazioni)
+                {
+                    <article class="prenotazione-card">
+                        <div class="prenotazione-card__topline">
+                            <span class="prenotazione-card__date">@prenotazione.DataPrenotazione.ToString("dddd dd MMMM, HH:mm")</span>
+                            <span class="prenotazione-card__status prenotazione-card__status--@GetStatoClasse(prenotazione.Stato)">@GetStatoLabel(prenotazione.Stato)</span>
+                        </div>
+                        <div>
+                            <h3>@prenotazione.NumeroPersone persone</h3>
+                            @if (prenotazione.NumeroTavolo.HasValue)
+                            {
+                                <p class="prenotazione-card__table">Tavolo @prenotazione.NumeroTavolo</p>
+                            }
+                            else if (prenotazione.Stato == "InAttesa")
+                            {
+                                <p class="prenotazione-card__waiting">Tavolo da assegnare</p>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(prenotazione.Note))
+                        {
+                            <p>@prenotazione.Note</p>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly PrenotazioneForm form = new()
+    {
+        DataPrenotazione = DateTime.Now.AddDays(1).Date.AddHours(20),
+        NumeroPersone = 2
+    };
+
+    private List<Prenotazione> prenotazioni = new();
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CaricaPrenotazioni();
+    }
+
+    private async Task SalvaPrenotazione()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        if (form.DataPrenotazione <= DateTime.Now.AddHours(1))
+        {
+            errorMessage = "Scegli una data con almeno un'ora di anticipo.";
+            return;
+        }
+
+        if (form.NumeroPersone is < 1 or > 20)
+        {
+            errorMessage = "Il numero di persone deve essere compreso tra 1 e 20.";
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var email = authState.User.FindFirstValue(ClaimTypes.Email) ?? authState.User.Identity?.Name;
+            var utente = string.IsNullOrWhiteSpace(email)
+                ? null
+                : await Db.Utenti.FirstOrDefaultAsync(u => u.Email.ToLower() == email.Trim().ToLower());
+
+            if (utente is null)
+            {
+                errorMessage = "Non è stato possibile identificare il tuo profilo.";
+                return;
+            }
+
+            var prenotazione = new Prenotazione
+            {
+                UtenteId = utente.Id,
+                Utente = utente,
+                DataPrenotazione = form.DataPrenotazione,
+                NumeroPersone = form.NumeroPersone,
+                Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim(),
+                Stato = "InAttesa"
+            };
+            Db.Prenotazioni.Add(prenotazione);
+
+            await Db.SaveChangesAsync();
+            await Notifications.SendReservationCreatedAsync(prenotazione);
+            successMessage = "Richiesta inviata. Ti confermeremo la disponibilità del tavolo.";
+            form.Note = string.Empty;
+            await CaricaPrenotazioni();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Non è stato possibile inviare la richiesta. Riprova tra poco.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task CaricaPrenotazioni()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var email = authState.User.FindFirstValue(ClaimTypes.Email) ?? authState.User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return;
+        }
+
+        var utenteId = await Db.Utenti
+            .Where(u => u.Email.ToLower() == email.Trim().ToLower())
+            .Select(u => (int?)u.Id)
+            .FirstOrDefaultAsync();
+
+        if (utenteId.HasValue)
+        {
+            prenotazioni = await Db.Prenotazioni
+                .Where(p => p.UtenteId == utenteId.Value)
+                .OrderByDescending(p => p.DataPrenotazione)
+                .Take(10)
+                .ToListAsync();
+        }
+    }
+
+    private static string GetStatoClasse(string stato) => stato switch
+    {
+        "Confermata" => "confirmed",
+        "Rifiutata" => "rejected",
+        "Completata" => "completed",
+        _ => "pending"
+    };
+
+    private static string GetStatoLabel(string stato) => stato switch
+    {
+        "InAttesa" => "In attesa",
+        _ => stato
+    };
+
+    private sealed class PrenotazioneForm
+    {
+        public DateTime DataPrenotazione { get; set; }
+        public int NumeroPersone { get; set; }
+        public string? Note { get; set; }
+    }
+}

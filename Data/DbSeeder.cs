@@ -149,29 +149,87 @@ public static class DbSeeder
 
 
 
-    
+    // Sincronizza gli utenti presenti nella tabella applicativa Utenti
+    // con gli account gestiti da ASP.NET Core Identity.
+
+
+    /// Il metodo:
+
+    // 1. crea i ruoli Admin e Cliente, se non esistono;
+
+    // 2. legge gli utenti applicativi dal database;
+
+    // 3. crea gli account Identity mancanti;
+
+    // 4. aggiorna nome, cognome ed e-mail degli account già esistenti;
+
+    // 5. assegna a ogni account il ruolo Identity corretto
 
     private static async Task SeedIdentityUsersAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
     {
+            // Elenco dei ruoli Identity necessari all'applicazione.
+
+            // Admin può accedere alle funzioni amministrative,
+
+            // mentre Cliente utilizza catalogo, carrello e ordini personali
+
+
         string[] roles = { "Admin", "Cliente" };
+
+        // Controlla singolarmente tutti i ruoli richiesti
         foreach (var roleName in roles)
         {
+
+            // Crea il ruolo soltanto se non è già presente
+
+            // nelle tabelle gestite da ASP.NET Core Identity
             if (!await roleManager.RoleExistsAsync(roleName))
             {
                 await roleManager.CreateAsync(new IdentityRole(roleName));
             }
         }
-
+            // Recupera tutti gli utenti dalla tabella applicativa Utenti.
+            // AsNoTracking viene usato perché questi record devono essere
+            // soltanto letti e non modificati tramite il DbContext.
         var utenti = await db.Utenti.AsNoTracking().ToListAsync();
+            // Esamina ogni utente applicativo per creare oppure
+
+            // aggiornare il corrispondente account Identity.
+
         foreach (var utente in utenti)
         {
+
+            // Recupera l'e-mail ed elimina eventuali spazi
+
+            // presenti all'inizio o alla fine.
+
+            // L'operatore ?? usa una stringa vuota se Email è null.
             var email = (utente.Email ?? string.Empty).Trim();
+            // Se l'utente non possiede un'e-mail valida,
+
+            // non è possibile creare un account Identity.
+
+            // Il ciclo passa quindi direttamente all'utente successivo
+
+
             if (string.IsNullOrWhiteSpace(email))
             {
                 continue;
             }
 
+            // Cerca nelle tabelle Identity un account che possieda
+
+            // lo stesso indirizzo e-mail dell'utente applicativo.
+
             var identityUser = await userManager.FindByEmailAsync(email);
+
+            // Costruisce il nuovo account Identity.
+
+// L'e-mail viene utilizzata anche come username.
+// La conferma dell'e-mail viene impostata direttamente
+
+// a true perché il progetto non implementa attualmente
+// l'invio di un messaggio di conferma.
             if (identityUser == null)
             {
                 identityUser = new ApplicationUser

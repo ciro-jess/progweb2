@@ -9,9 +9,9 @@ main {
 }
 
 .sidebar {
-    background: #29231f;
-    border-right: 4px solid #e5a629;
-    box-shadow: 8px 0 24px rgba(41, 35, 31, 0.12);
+    background: #1f2933;
+    border-right: 4px solid var(--food-mustard);
+    box-shadow: 8px 0 24px rgba(31, 41, 51, 0.12);
 }
 
 .top-row {
@@ -75,6 +75,17 @@ main {
     .top-row, article {
         padding-left: 2.5rem !important;
         padding-right: 2rem !important;
+    }
+}
+
+@media (max-width: 640.98px) {
+    .top-row, article {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .top-row {
+        min-height: 3.25rem;
     }
 }
 

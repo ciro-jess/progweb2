@@ -12,10 +12,17 @@
 
 <PageTitle>Registrati</PageTitle>
 
-<div class="row justify-content-center mt-5">
-    <div class="col-md-5">
-        <h1>Registrati</h1>
-        <hr />
+<div class="account-shell">
+    <section class="account-panel account-panel--wide">
+        <div class="account-kicker">Ottava Meraviglia</div>
+        <h1>Crea il tuo account</h1>
+        <p class="account-lead">Salva i tuoi preferiti e completa gli ordini in pochi passaggi.</p>
+        <div class="account-progress" aria-label="Progresso registrazione">
+            @for (var index = 1; index <= maxStep; index++)
+            {
+                <span class="account-progress__step @(index <= step ? "is-active" : string.Empty)">@index</span>
+            }
+        </div>
 
         @if (errorMessages.Any())
         {
@@ -33,7 +40,7 @@
 
             @if (step == 1)
             {
-                <h3> Passaggio 1 - Dati Personali </h3>
+                <h3>Dati personali</h3>
 
             <div class="form-floating mb-3">
                 <InputText id="nome-input" @bind-Value="Input.Nome" class="form-control" 
@@ -71,7 +78,7 @@
             }
             else if (step == 2)
             {
-                 <h3>passaggio 2- Account </h3>
+                 <h3>Dati di accesso</h3>
                 <div class="form-floating mb-3">
                 <InputText id="email-input" @bind-Value="Input.Email" class="form-control" 
                     autocomplete="username" aria-required="true" placeholder="name@example.com" />
@@ -98,16 +105,16 @@
             else if  (step == 3)
             {
                 
-                <h4>passo 3- conferma </h4>
+                <h3>Conferma i tuoi dati</h3>
                 <p><strong>Email:</strong>@Input.Email</p>
                 <p><strong>Nome:</strong>@Input.Nome @Input.Cognome</p>
             
             }
 
 
-            <div class="d-flex justify-content-between mt-3">
+            <div class="account-actions">
                 <button type="button" class="btn btn-secondary" @onclick="Previous" disabled="@(step==1)">Indietro</button>
-                <button type="button" class="btn btn-primary" @onclick="() => NextOrValidate()"> @(step < maxStep ? "Avanti" : "Registrati")</button>
+                <button type="button" class="btn btn-primary" @onclick="() => NextOrValidate()"> @(step < maxStep ? "Avanti" : "Crea account")</button>
             </div>
             
 
@@ -115,7 +122,7 @@
                 <p>Hai già un account? <a href="Account/Login">Accedi</a></p>
             </div>
         </EditForm>
-    </div>
+    </section>
 </div>
 
 @code {
@@ -262,7 +269,16 @@
             return;
         }
 
-        NavigationManager.NavigateTo(ReturnUrl ?? "/catalogo", forceLoad: true);
+        var returnUrl = GetSafeReturnUrl();
+        NavigationManager.NavigateTo($"/Account/Login?registered=true&returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+
+    private string GetSafeReturnUrl()
+    {
+        return !string.IsNullOrWhiteSpace(ReturnUrl) && Uri.TryCreate(ReturnUrl, UriKind.Relative, out var uri)
+            && !ReturnUrl.StartsWith("//", StringComparison.Ordinal)
+            ? uri.ToString()
+            : "/catalogo";
     }
 
     private sealed class InputModel

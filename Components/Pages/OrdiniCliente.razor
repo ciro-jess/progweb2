@@ -42,7 +42,7 @@
             {
                 <div class="card h-100">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Ordine #@ordine.Id</h5>
+                        <h5 class="card-title mb-0">Ordine @ordine.CodiceOrdine</h5>
                     </div>
                     <div class="card-body">
                         <p class="text-muted small">@ordine.DataOrdine.ToString("dd/MM/yyyy HH:mm")</p>
@@ -68,6 +68,16 @@
                                 <strong>Pagamento:</strong>
                                 <span class="ordini-badge ordini-badge--info">@ordine.Pagamento.Stato</span>
                             </div>
+                        }
+
+                        <div class="mb-3">
+                            <strong>Ritiro:</strong>
+                            <span class="ordini-badge ordini-badge--success">@ordine.ModalitaRitiro</span>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(ordine.NoteOrdine))
+                        {
+                            <div class="small text-muted">Note: @ordine.NoteOrdine</div>
                         }
                     </div>
                     <div class="card-footer">
@@ -138,6 +148,8 @@
         {
             "Accettato" => "success",
             "Pagato" => "info",
+            "In Preparazione" => "info",
+            "Pronto al banco" => "warning",
             "Spedito" => "warning",
             "Consegnato" => "primary",
             "Rifiutato" => "danger",

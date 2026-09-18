@@ -11,6 +11,7 @@
 @rendermode InteractiveServer
 @inject ApplicationDbContext Db
 @inject NavigationManager Navigation
+@inject IOrderNotificationService Notifications
 
 <PageTitle>Carrello | Ottava Meraviglia</PageTitle>
 
@@ -133,6 +134,22 @@
             </Columns>
         </RadzenDataGrid>
 
+        <section class="ordine-opzioni mb-4" aria-labelledby="ordine-opzioni-title">
+            <div>
+                <p class="ordine-opzioni__eyebrow">Consegna ordine</p>
+                <h2 id="ordine-opzioni-title">Come vuoi riceverlo?</h2>
+                <p class="text-muted mb-0">Scegli il ritiro direttamente al banco del negozio.</p>
+            </div>
+            <div class="ordine-opzioni__fields">
+                <label class="form-label" for="modalita-ritiro">Modalità</label>
+                <select id="modalita-ritiro" class="form-select" @bind="modalitaRitiro">
+                    <option value="Al banco">Ritiro al banco</option>
+                </select>
+                <label class="form-label" for="note-ordine">Note per il banco <span class="text-muted">(opzionale)</span></label>
+                <textarea id="note-ordine" class="form-control" rows="2" maxlength="500" @bind="noteOrdine" placeholder="Es. allergie o indicazioni particolari"></textarea>
+            </div>
+        </section>
+
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <p class="mb-0 text-muted">Carrello ID: @activeCarrelloId</p>
@@ -165,6 +182,8 @@
     private string? errorMessage;
     private string? successMessage;
     private const string StatoOrdineInSospeso = "In Sospeso";
+    private string modalitaRitiro = "Al banco";
+    private string? noteOrdine;
 
     private PaymentModel? paymentModal;
 
@@ -565,9 +584,18 @@ private async Task SyncOrdineInSospesoAsync()
                 return;
             }
 
+            ordineInSospeso.ModalitaRitiro = modalitaRitiro;
+            ordineInSospeso.NoteOrdine = string.IsNullOrWhiteSpace(noteOrdine) ? null : noteOrdine.Trim();
             ordineInSospeso.Stato = "Pagato";
             ordineInSospeso.DataOrdine = DateTime.Now;
             await Db.SaveChangesAsync();
+
+            var ordineConDettagli = await Db.Ordini
+                .Include(o => o.Utente)
+                .Include(o => o.OrdineProdotti)
+                    .ThenInclude(op => op.Prodotto)
+                .FirstAsync(o => o.Id == ordineInSospeso.Id);
+            await Notifications.SendOrderConfirmationAsync(ordineConDettagli);
 
             var elementiCarrello = await Db.CarrelloProdotti
                 .Where(cp => cp.CarrelloId == activeCarrelloId)

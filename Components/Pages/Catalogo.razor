@@ -49,6 +49,7 @@
                     Sottotitolo="@prodotto.Categoria"
                     Prezzo='@prodotto.Prezzo.ToString("C")'  
                     Descrizione="@prodotto.Descrizione"   
+                    ImmagineUrl="@prodotto.ImmagineUrl"
                     Badge='@(prodotto.Disponibile ? "Disponibile" : "Non disponibile")'  
                     TastoPulsanteDettagli="Dettagli"
                     PulsanteDisabilitatoCarrello="@(!prodotto.Disponibile)"

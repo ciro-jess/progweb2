@@ -4,6 +4,7 @@ using OnlineShop.Data;
 using OnlineShop.Components.Account;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using OnlineShop.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,9 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContext<ApplicationDbContext>(options => 
     options.UseSqlite("Data Source =OnlineShop.db"));
+
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.AddScoped<IOrderNotificationService, OrderNotificationService>();
 
 builder.Services.AddCascadingAuthenticationState();
 

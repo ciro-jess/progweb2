@@ -1,3 +1,40 @@
+.ordine-opzioni {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 360px);
+    gap: 1.5rem;
+    align-items: start;
+    padding: 1.25rem;
+    border: 1px solid var(--food-line);
+    border-left: 5px solid var(--food-teal);
+    border-radius: 10px;
+    background: var(--food-paper);
+}
+
+.ordine-opzioni__eyebrow {
+    margin: 0 0 .35rem;
+    color: var(--food-teal);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.ordine-opzioni h2 {
+    margin: 0 0 .4rem;
+    font-size: 1.25rem;
+}
+
+.ordine-opzioni__fields {
+    display: grid;
+    gap: .45rem;
+}
+
+@media (max-width: 700px) {
+    .ordine-opzioni {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
 .carrello-page {
     display: flex;
     flex-direction: column;

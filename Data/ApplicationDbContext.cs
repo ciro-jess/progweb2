@@ -8,6 +8,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options ) : base( options) {}
 
+    public override int SaveChanges()
+    {
+        AssegnaCodiciOrdine();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        AssegnaCodiciOrdine();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void AssegnaCodiciOrdine()
+    {
+        foreach (var ordine in ChangeTracker.Entries<Ordine>()
+                     .Where(entry => entry.State == EntityState.Added && string.IsNullOrWhiteSpace(entry.Entity.CodiceOrdine)))
+        {
+            ordine.Entity.CodiceOrdine = $"OM-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..19].ToUpperInvariant();
+        }
+    }
+
 
     public DbSet<Utente> Utenti { get; set; } = null!;
     public DbSet<Scontrino> Scontrini { get; set; } = null!;
@@ -102,7 +123,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Prodotto>()
             .HasMany(p => p.Prenotazioni)
             .WithOne(pr => pr.Prodotto)
-            .HasForeignKey(pr => pr.ProdottoId);
+            .HasForeignKey(pr => pr.ProdottoId)
+            .IsRequired(false);
 
 
 
@@ -112,6 +134,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         // =========================
         modelBuilder.Entity<Ordine>()
             .HasKey(o => o.Id);
+
+        modelBuilder.Entity<Ordine>()
+            .HasIndex(o => o.CodiceOrdine)
+            .IsUnique();
 
         modelBuilder.Entity<Ordine>()
             .Property(o => o.Totale)

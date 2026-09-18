@@ -1,0 +1,226 @@
+@page "/admin/prenotazioni"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.EntityFrameworkCore
+@using OnlineShop.Data.Entities
+@rendermode InteractiveServer
+@inject ApplicationDbContext Db
+@inject IOrderNotificationService Notifications
+
+<PageTitle>Prenotazioni | Ottava Meraviglia</PageTitle>
+
+<div class="prenotazioni-page">
+    <header class="prenotazioni-hero">
+        <p>Gestione sala</p>
+        <h1>Prenotazioni tavoli</h1>
+        <span>Conferma le richieste e assegna il tavolo disponibile.</span>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert alert-success" role="status">@message</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Caricamento prenotazioni...</p>
+    }
+    else if (prenotazioni.Count == 0)
+    {
+        <p class="prenotazioni-empty">Non ci sono richieste di prenotazione.</p>
+    }
+    else
+    {
+        <div class="prenotazioni-admin-summary" aria-label="Riepilogo prenotazioni">
+            <span><strong>@prenotazioni.Count(p => p.Stato == "InAttesa")</strong> in attesa</span>
+            <span><strong>@prenotazioni.Count(p => p.Stato == "Confermata")</strong> confermate</span>
+            <span><strong>@prenotazioni.Count(p => p.Stato == "Rifiutata")</strong> rifiutate</span>
+        </div>
+        <div class="prenotazioni-toolbar">
+            <label for="filtro-stato">Mostra</label>
+            <select id="filtro-stato" class="form-select" @bind="statoFiltro">
+                <option value="Tutte">Tutte le prenotazioni</option>
+                <option value="InAttesa">In attesa</option>
+                <option value="Confermata">Confermate</option>
+                <option value="Rifiutata">Rifiutate</option>
+                <option value="Completata">Completate</option>
+            </select>
+            <span class="prenotazioni-toolbar__count">@PrenotazioniVisibili.Count() visualizzate</span>
+        </div>
+        @if (!PrenotazioniVisibili.Any())
+        {
+            <p class="prenotazioni-empty">Nessuna prenotazione corrisponde al filtro selezionato.</p>
+        }
+        else
+        {
+        <div class="prenotazioni-grid">
+            @foreach (var prenotazione in PrenotazioniVisibili)
+            {
+                <article class="prenotazione-card prenotazione-card--admin">
+                    <div>
+                        <span class="prenotazione-card__date">@prenotazione.DataPrenotazione.ToString("dddd dd MMMM, HH:mm")</span>
+                        <h2>@(prenotazione.Utente?.NomeCompleto ?? "Cliente")</h2>
+                        <div class="prenotazione-card__meta">
+                            <span>@prenotazione.NumeroPersone persone</span>
+                            <span class="prenotazione-card__status prenotazione-card__status--@GetStatoClasse(prenotazione.Stato)">@GetStatoLabel(prenotazione.Stato)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(prenotazione.Note))
+                        {
+                            <p>Note: @prenotazione.Note</p>
+                        }
+                    </div>
+                    <div class="prenotazione-admin-fields">
+                        <label for="stato-@prenotazione.Id">Stato</label>
+                        <select id="stato-@prenotazione.Id" class="form-select" @bind="prenotazione.Stato">
+                            <option value="InAttesa">In attesa</option>
+                            <option value="Confermata">Confermata</option>
+                            <option value="Rifiutata">Rifiutata</option>
+                            <option value="Completata">Completata</option>
+                        </select>
+                        <label for="tavolo-@prenotazione.Id">Numero tavolo</label>
+                        <InputNumber id="@($"tavolo-{prenotazione.Id}")" @bind-Value="prenotazione.NumeroTavolo" class="form-control" min="1" />
+                        <button class="btn btn-primary" disabled="@salvataggiInCorso.Contains(prenotazione.Id)" @onclick="() => SalvaPrenotazione(prenotazione)">
+                            @(salvataggiInCorso.Contains(prenotazione.Id) ? "Salvataggio..." : "Salva gestione")
+                        </button>
+                    </div>
+                </article>
+            }
+        </div>
+        }
+    }
+</div>
+
+@code {
+    private List<Prenotazione> prenotazioni = new();
+    private bool isLoading = true;
+    private string? message;
+    private string? errorMessage;
+    private string statoFiltro = "Tutte";
+    private readonly HashSet<int> salvataggiInCorso = new();
+    private readonly Dictionary<int, (string Stato, int? Tavolo)> valoriOriginali = new();
+
+    private IEnumerable<Prenotazione> PrenotazioniVisibili => statoFiltro == "Tutte"
+        ? prenotazioni
+        : prenotazioni.Where(p => p.Stato == statoFiltro);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CaricaPrenotazioni();
+    }
+
+    private async Task CaricaPrenotazioni()
+    {
+        try
+        {
+            prenotazioni = await Db.Prenotazioni
+                .Include(p => p.Utente)
+                .OrderBy(p => p.Stato == "InAttesa" ? 0 : 1)
+                .ThenBy(p => p.DataPrenotazione)
+                .ToListAsync();
+            valoriOriginali.Clear();
+            foreach (var prenotazione in prenotazioni)
+            {
+                valoriOriginali[prenotazione.Id] = (prenotazione.Stato, prenotazione.NumeroTavolo);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Non è stato possibile caricare le prenotazioni.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SalvaPrenotazione(Prenotazione prenotazione)
+    {
+        message = null;
+        errorMessage = null;
+        if (salvataggiInCorso.Contains(prenotazione.Id))
+        {
+            return;
+        }
+
+        if (valoriOriginali.TryGetValue(prenotazione.Id, out var originale)
+            && originale.Stato == prenotazione.Stato
+            && originale.Tavolo == prenotazione.NumeroTavolo)
+        {
+            message = "Nessuna modifica da salvare.";
+            return;
+        }
+
+        salvataggiInCorso.Add(prenotazione.Id);
+        try
+        {
+            if (prenotazione.Stato == "Confermata" && (!prenotazione.NumeroTavolo.HasValue || prenotazione.NumeroTavolo < 1))
+            {
+                RipristinaValoriOriginali(prenotazione);
+                errorMessage = "Per confermare una prenotazione devi assegnare un numero di tavolo.";
+                return;
+            }
+
+            if (prenotazione.Stato == "Confermata" && prenotazione.NumeroTavolo.HasValue)
+            {
+                var inizioFinestra = prenotazione.DataPrenotazione.AddHours(-2);
+                var fineFinestra = prenotazione.DataPrenotazione.AddHours(2);
+                var tavoloOccupato = await Db.Prenotazioni.AnyAsync(p =>
+                    p.Id != prenotazione.Id &&
+                    p.Stato == "Confermata" &&
+                    p.NumeroTavolo == prenotazione.NumeroTavolo &&
+                    p.DataPrenotazione >= inizioFinestra &&
+                    p.DataPrenotazione <= fineFinestra);
+
+                if (tavoloOccupato)
+                {
+                    RipristinaValoriOriginali(prenotazione);
+                    errorMessage = "Il tavolo selezionato è già occupato in quell'orario.";
+                    return;
+                }
+            }
+
+            await Db.SaveChangesAsync();
+            await Notifications.SendReservationStatusAsync(prenotazione);
+            valoriOriginali[prenotazione.Id] = (prenotazione.Stato, prenotazione.NumeroTavolo);
+            message = $"Prenotazione #{prenotazione.Id} aggiornata.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Non è stato possibile aggiornare la prenotazione.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            salvataggiInCorso.Remove(prenotazione.Id);
+        }
+    }
+
+    private void RipristinaValoriOriginali(Prenotazione prenotazione)
+    {
+        if (valoriOriginali.TryGetValue(prenotazione.Id, out var originale))
+        {
+            prenotazione.Stato = originale.Stato;
+            prenotazione.NumeroTavolo = originale.Tavolo;
+        }
+    }
+
+    private static string GetStatoClasse(string stato) => stato switch
+    {
+        "Confermata" => "confirmed",
+        "Rifiutata" => "rejected",
+        "Completata" => "completed",
+        _ => "pending"
+    };
+
+    private static string GetStatoLabel(string stato) => stato switch
+    {
+        "InAttesa" => "In attesa",
+        _ => stato
+    };
+}
